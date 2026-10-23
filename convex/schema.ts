@@ -106,6 +106,21 @@ export default defineSchema({
     memberRole: v.union(v.literal("learner"), v.literal("coach")),
     createdAt: v.string(),
   }).index("by_legacy", ["legacyId"]).index("by_user_course", ["userId", "courseId"]).index("by_user", ["userId"]).index("by_cohort", ["cohortId"]),
+  // Shared class board (group workshop lessons, e.g. QLCT Buổi 01). One row per slot; `seq` grows on every
+  // write so a poll reads only rows changed since the client's last seq (index range, no full scan).
+  classBoardRows: defineTable({
+    cohortId: v.number(),
+    lessonNumber: v.number(),
+    kind: v.string(),
+    key: v.string(),
+    /** Owner: author of a lens, the learner of an extract/resolve; the first writer otherwise. */
+    userId: v.number(),
+    dataJson: v.string(),
+    deleted: v.number(),
+    seq: v.number(),
+    updatedAt: v.string(),
+    updatedBy: v.number(),
+  }).index("by_slot", ["cohortId", "lessonNumber", "kind", "key"]).index("by_seq", ["cohortId", "lessonNumber", "seq"]),
   lessonAnswers: defineTable({
     legacyId: v.number(),
     userId: v.number(),

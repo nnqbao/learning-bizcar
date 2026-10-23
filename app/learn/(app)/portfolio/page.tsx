@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { answersFor, learningState } from "@/lib/access";
 import { PORTFOLIO, readPath } from "@/lib/course";
 import { babosoraFields, isBabosoraCourse } from "@/lib/babosora-applier";
+import { isQlctCourse, qlctFields } from "@/lib/qlct-course";
 import { isVabixCourse, vabixFields } from "@/lib/vabix-applier";
 import { PrintButton } from "@/components/learning/PrintButton";
 import { canSee } from "@/lib/permissions";
@@ -24,6 +25,7 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
   const lessons = state.lessons;
   const vabix = isVabixCourse(course.slug, lessons[0]?.storage_key);
   const babosora = isBabosoraCourse(course.slug, lessons[0]?.storage_key);
+  const qlct = isQlctCourse(course.slug, lessons[0]?.storage_key);
   const answers = new Map((await answersFor(user.id, course.slug)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
   const courses = [...new Map(state.enrollments.map((seat) => [seat.course_slug, seat])).values()];
   return (
@@ -31,7 +33,7 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
       <div className="no-print" style={{ textAlign: "right" }}><PrintButton label={t.print} /></div>
       <header>
         <div className="eyebrow">VABIX · {course.code}</div>
-        <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 58px)", marginBottom: 0 }}>{vabix || babosora ? course.title : "My BizCar"}</h1>
+        <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 58px)", marginBottom: 0 }}>{vabix || babosora || qlct ? course.title : "My BizCar"}</h1>
         <p className="lede">{t.portfolioLede} {user.displayName}.</p>
         {courses.length > 1 && (
           <p className="row-actions no-print">
@@ -44,6 +46,8 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
           ? { heading: `${lesson.title} · ${lesson.framework}`, paths: vabixFields(lesson.number) }
           : babosora
             ? { heading: `${lesson.title} · ${lesson.framework}`, paths: babosoraFields(lesson.number) }
+            : qlct
+            ? { heading: `${lesson.title} · ${lesson.framework}`, paths: qlctFields(lesson.number) }
             : PORTFOLIO[lesson.number];
         const data = answers.get(lesson.id) ?? {};
         return (

@@ -106,3 +106,12 @@ window.__babosoraOpenSession=function(i){
     showPhases: false,
   };
 }
+
+/** A class-workshop lesson file (components/learning/ClassBoardLesson.tsx runs it on the shared class board). */
+export function loadBoardLesson(file: string, scopeClass: string) {
+  const html = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+  const css = html.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? "";
+  const body = html.match(/<body[^>]*>([\s\S]*?)<script>/)?.[1] ?? "";
+  const script = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/)?.[1] ?? "";
+  return { css: scopeCss(css, `.${scopeClass}`), html: body, script };
+}
