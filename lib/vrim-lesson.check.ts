@@ -77,7 +77,7 @@ const OLD_KEY = "bmdo-k03-buoi04-vrim-v1";
 const NEW_KEY = "bmdo-k03-buoi04-vrim-v2";
 assert(answerKeyFor(OLD_KEY) === NEW_KEY, "lesson 4 has its own new answer key");
 assert(ANSWER_VERSIONS[OLD_KEY] === NEW_KEY, "Buổi 04 mapping unchanged (batch-1 studio lessons are checked in lib/bmdo-studios.check.ts)");
-assert(LESSONS.filter((row) => answerKeyFor(row.storageKey)).map((row) => row.number).join() === "4,8,9,10,11,12,14", "only Buổi 04 and the batch-1 studio lessons moved");
+assert(LESSONS.filter((row) => answerKeyFor(row.storageKey)).map((row) => row.number).join() === "4,8,9,10,11,12,14,24", "only Buổi 04 and the studio lessons moved");
 assert(!answerKeyFor("babosora-applier-buoi04-so-ra-v1") && !answerKeyFor("bmdo-k03-buoi05-lear-v1") && !answerKeyFor(""), "other courses unchanged");
 
 const keyOf = (id: number) => (id === 4 ? NEW_KEY : null);

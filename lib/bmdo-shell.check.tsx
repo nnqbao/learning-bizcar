@@ -25,6 +25,7 @@ assert(JSON.stringify(ANSWER_VERSIONS) === JSON.stringify({
   bmdo_k03_buoi11_mtread_grip: "bmdo-k03-buoi11-mtread-v2",
   bmdo_k03_buoi12_prim_cod: "bmdo-k03-buoi12-prim-v2",
   bmdo_k03_buoi14_pcasing_wsc: "bmdo-k03-buoi14-pcasing-v2",
+  bmdo_k03_buoi24_bizcar_fuel_6ft_v1: "bmdo-k03-buoi24-6ft-v2",
 }), "answer versions from #25/#26 unchanged");
 
 // --- The lesson page turns the shell on for BMDO-K03 only (never VABIX / BABOSORA). ---
@@ -52,7 +53,7 @@ for (const lesson of LESSONS) {
     assert(new RegExp(`(id|data-panel)="${phase.id}"`).test(source.html), `${lesson.code} has a panel for ${phase.id}`);
   }
 }
-assert(kinds.native.join() === "4" && kinds.studio.join() === "8,9,10,11,12,14" && kinds.original.length === 23, "30 lessons: 1 native, 6 studios, 23 originals");
+assert(kinds.native.join() === "4" && kinds.studio.join() === "8,9,10,11,12,14,24" && kinds.original.length === 22, "30 lessons: 1 native, 7 studios, 22 originals");
 
 // --- The header renders the standard parts for all 30 lessons. ---
 (globalThis as { React?: typeof React }).React = React;

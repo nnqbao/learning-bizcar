@@ -21,6 +21,7 @@ export const STUDIO_FILES: Record<string, [string, string]> = {
   mtread: ["source/bmdo-k03-studios/mtread/index.html", "validate"],
   prim: ["source/bmdo-k03-studios/prim/index.html", "valid"],
   pcasing: ["source/bmdo-k03-studios/pcasing/index.html", "valid"],
+  sixft: ["source/bmdo-k03-studios/sixft/index.html", "valid"],
 };
 
 const OUT = "lib/studios/validators.generated.ts";

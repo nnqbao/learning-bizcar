@@ -1,5 +1,5 @@
 /**
- * BMDO-K03 lessons rebuilt from an original MyBizCar studio file (batch 1: Buổi 08, 09, 10, 11, 12, 14).
+ * BMDO-K03 lessons rebuilt from an original MyBizCar studio file (batch 1: Buổi 08, 09, 10, 11, 12, 14; Buổi 24 6FT).
  *
  * The studio's own code, content and 7-step APPLIER flow run inside the lesson shell (no iframe).
  * Learner work is one "studio envelope" saved in the new-version record (table lessonAnswerVersions,
@@ -8,7 +8,7 @@
  */
 import type { PhaseId } from "../course";
 
-export type StudioId = "mrim" | "mair" | "mcasing" | "mtread" | "prim" | "pcasing";
+export type StudioId = "mrim" | "mair" | "mcasing" | "mtread" | "prim" | "pcasing" | "sixft";
 
 /** The studio's 7 APPLIER steps, in order, mapped to the lesson shell phases. */
 export const STUDIO_STEPS: PhaseId[] = ["activate", "paradigm", "practice", "lens", "improve", "extract", "resolve"];
@@ -324,6 +324,59 @@ export const STUDIOS: StudioConfig[] = [
         `${list(doc.points).length} EncounterPoint · ${list(doc.feedback).length} phản hồi · ${list(doc.readings).length} chỉ số D · ${list(doc.actions).length} kế hoạch`,
         line("EncounterPoint", list(doc.points).slice(0, 12).map((p) => [p.target, p.layer, p.name].filter(text).join(" · ")).join("; ")),
         line("Kế hoạch", names(list(doc.actions), "action")),
+        line("Bài học", notes.extract),
+        line("Cam kết", notes.resolve),
+      ]);
+    },
+  },
+  {
+    id: "sixft",
+    lesson: 24,
+    title: "6FT",
+    framework: "6FT",
+    file: "source/bmdo-k03-studios/sixft/index.html",
+    oldKey: "bmdo_k03_buoi24_bizcar_fuel_6ft_v1",
+    answerKey: "bmdo-k03-buoi24-6ft-v2",
+    localKey: "vabix_6ft_v1",
+    stateVar: "state",
+    readStep: "tab",
+    writeStep: "tab = i",
+    imports: "JSON từ bản 6FT CEO Lab (ZIP): nút «Nhập JSON»",
+    intro: [
+      "BizCar Fuel · Six Fuel Tanks: T1 Tri thức · T2 Tài năng · T3 Thông tin · T4 Thương hiệu · T5 Tài chính · T6 Tín kết. Nguồn lực chưa huy động chỉ là tiềm năng; chưa chuyển hóa thì chưa phải lực đẩy.",
+      "Nhận diện → Đo → Đánh giá → Định giá có điều kiện → Cảnh báo cạn → Thiết kế cách bơm → So sánh trước / sau. Mỗi nguồn lực đo theo Target: độ phủ, chất lượng 1–5, khả dụng 1–5 và mức bằng chứng; thư viện 72 nguồn lực gợi ý.",
+      "Chỉ số là gợi ý đào tạo, không phải định giá sáu bình bằng tiền. “Sau” là mức dự kiến, chưa được kiểm chứng. Không lấy điểm trung bình để che nguồn nhiên liệu khóa.",
+    ],
+    steps: (doc, visited) => {
+      const notes = rec(doc.notes);
+      const company = rec(doc.company);
+      return [
+        text(company.name) || text(company.target) || text(notes.activate),
+        seen(visited, "paradigm") || list(doc.items).length > 0,
+        list(doc.items).length > 0,
+        text(notes.lens),
+        list(doc.plans).length > 0,
+        text(notes.extract),
+        text(notes.resolve),
+      ];
+    },
+    summary: (doc) => {
+      const notes = rec(doc.notes);
+      const company = rec(doc.company);
+      const items = list(doc.items);
+      const plans = list(doc.plans);
+      const tanks = ["T1", "T2", "T3", "T4", "T5", "T6"].map((tank) => `${tank} ${items.filter((item) => item.tank === tank).length}`).join(" · ");
+      return join([
+        [company.name, company.industry, company.cycle].filter(text).join(" · "),
+        line("Target", company.target),
+        `${items.length} nguồn lực (${tanks}) · ${plans.length} phương án bơm`,
+        ...items.slice(0, 12).map((item) => `- ${String(item.tank ?? "")} ${String(item.name ?? "").trim() || "Nguồn lực"}: ${String(item.qty ?? 0)}/${String(item.need ?? 0)} ${String(item.unit ?? "").trim()} · chất ${String(item.quality ?? "?")}/5 · khả dụng ${String(item.access ?? "?")}/5`),
+        ...plans.slice(0, 8).map((plan) => {
+          const item = items.find((row) => row.id === plan.itemId) ?? {};
+          return `- Bơm ${String(item.tank ?? "")} ${String(item.name ?? "").trim()}: ${String(plan.method ?? "").trim()} · KA ${String(plan.ka ?? "").trim()}`;
+        }),
+        line("Khởi động", notes.activate),
+        line("Lăng kính", notes.lens),
         line("Bài học", notes.extract),
         line("Cam kết", notes.resolve),
       ]);
