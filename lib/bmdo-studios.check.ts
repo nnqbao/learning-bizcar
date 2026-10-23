@@ -1,4 +1,4 @@
-// Batch 1 BMDO-K03 studio lessons (Buổi 08, 09, 10, 11, 12, 14). Run: npx tsx lib/bmdo-studios.check.ts
+// BMDO-K03 studio lessons (Buổi 08, 09, 10, 11, 12, 14, 24). Run: npx tsx lib/bmdo-studios.check.ts
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import { LESSONS, WORKBOOK, readPath } from "./course.ts";
@@ -23,8 +23,9 @@ const EXPECTED: Record<number, [string, string, string]> = {
   11: ["mtread", "bmdo_k03_buoi11_mtread_grip", "bmdo-k03-buoi11-mtread-v2"],
   12: ["prim", "bmdo_k03_buoi12_prim_cod", "bmdo-k03-buoi12-prim-v2"],
   14: ["pcasing", "bmdo_k03_buoi14_pcasing_wsc", "bmdo-k03-buoi14-pcasing-v2"],
+  24: ["sixft", "bmdo_k03_buoi24_bizcar_fuel_6ft_v1", "bmdo-k03-buoi24-6ft-v2"],
 };
-assert(STUDIOS.length === 6, "six studios");
+assert(STUDIOS.length === 7, "seven studios");
 for (const [num, [id, oldKey, newKey]] of Object.entries(EXPECTED)) {
   const lesson = LESSONS.find((row) => row.number === Number(num));
   const config = studioForLesson(Number(num));
@@ -37,10 +38,10 @@ for (const [num, [id, oldKey, newKey]] of Object.entries(EXPECTED)) {
   assert(new Set(fields).size === fields.length && fields.includes("outline"), `lesson ${num} workbook fields listed once`);
 }
 assert(LESSONS.filter((row) => row.hasReport && studioForLesson(row.number)).map((row) => row.number).join() === "9,10,11,12,14", "report lessons unchanged");
-assert(Object.keys(ANSWER_VERSIONS).length === 7 && answerKeyFor("bmdo-k03-buoi04-vrim-v1") === "bmdo-k03-buoi04-vrim-v2", "Buổi 04 mapping unchanged; 6 added");
-assert(LESSONS.filter((row) => answerKeyFor(row.storageKey)).map((row) => row.number).join() === "4,8,9,10,11,12,14", "no other BMDO lesson moved");
+assert(Object.keys(ANSWER_VERSIONS).length === 8 && answerKeyFor("bmdo-k03-buoi04-vrim-v1") === "bmdo-k03-buoi04-vrim-v2", "Buổi 04 mapping unchanged; 7 added");
+assert(LESSONS.filter((row) => answerKeyFor(row.storageKey)).map((row) => row.number).join() === "4,8,9,10,11,12,14,24", "no other BMDO lesson moved");
 assert(!answerKeyFor("bmdo-k03-buoi05-lear-v1") && !answerKeyFor("babosora-applier-buoi04-so-ra-v1") && !answerKeyFor(""), "other lessons and courses unchanged");
-assert(new Set(Object.values(ANSWER_VERSIONS)).size === 7, "answer keys unique");
+assert(new Set(Object.values(ANSWER_VERSIONS)).size === 8, "answer keys unique");
 execFileSync(process.execPath, [...process.execArgv, "scripts/studio-validators.ts", "--check"], { stdio: "inherit" });
 
 // --- Source loads, scoped, with the studio's script intact ---
