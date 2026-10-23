@@ -41,10 +41,27 @@ export const QLCT_LESSONS: QlctLesson[] = [
     contentVersion: "2026.10",
     source: "source/vabix-qlct/buoi01/index.html",
   },
+  {
+    number: 2,
+    code: "02",
+    title: "Quản trị con người & Kiến tạo đội ngũ",
+    titleEn: "People Management & Team Building",
+    titleUpper: "QUẢN TRỊ CON NGƯỜI & KIẾN TẠO ĐỘI NGŨ",
+    titleUpperEn: "PEOPLE MANAGEMENT & TEAM BUILDING",
+    framework: "MÂM · HƠI · VỎ · GAI",
+    summary: "Bánh xe Nhân lực: Mâm COD, Hơi CRISS, Vỏ WSC, Gai MAPY. Bốn nhóm thực hành bốn cấu kiện, pitching, góp góc nhìn, chốt V2 và cam kết 90 ngày.",
+    summaryEn: "The People Wheel: Rim COD, Air CRISS, Casing WSC, Tread MAPY. Four groups practise four components, pitch, add peer lenses, settle V2 and commit for 90 days.",
+    group: "APPLIER",
+    hasReport: false,
+    storageKey: "vabix-qlct-buoi02-nhan-luc-v1",
+    schemaVersion: "1",
+    contentVersion: "2026.10",
+    source: "source/vabix-qlct/buoi02/index.html",
+  },
 ];
 
-/** What a learner's own record of a board lesson holds (mirrored from the board on every personal save). */
-const PERSONAL: [string, string][] = [
+/** What a learner's own record of each board lesson holds (mirrored from the board on every personal save). */
+const PERSONAL_01: [string, string][] = [
   ["group", "Nhóm"],
   ["extract.trait", "Phẩm chất suy ngẫm nhiều nhất"],
   ["extract.p1", "Bài học Paradigm 01"],
@@ -67,12 +84,36 @@ const PERSONAL: [string, string][] = [
   ["resolve.commitment", "Câu cam kết"],
 ];
 
+const PERSONAL_02: [string, string][] = [
+  ["group", "Nhóm / cấu kiện"],
+  ["vote", "Lựa chọn ở Activate"],
+  ["extract.wheel", "Bài học lớn nhất về Bánh xe Nhân lực"],
+  ["extract.rim", "Bài học từ Mâm – COD"],
+  ["extract.air", "Bài học từ Hơi – CRISS"],
+  ["extract.casing", "Bài học từ Vỏ – WSC"],
+  ["extract.tread", "Bài học từ Gai – MAPY"],
+  ["extract.integrated", "Bài học tích hợp"],
+  ["extract.before", "Trước đây tôi thường nghĩ"],
+  ["extract.after", "Sau buổi học tôi nhận ra"],
+  ["extract.sentence", "Câu ghi nhớ"],
+  ["resolve.focus", "Trọng tâm Bánh xe Nhân lực"],
+  ["resolve.action", "Hành động 90 ngày"],
+  ["resolve.d30", "30 ngày"],
+  ["resolve.d60", "60 ngày"],
+  ["resolve.d90", "90 ngày"],
+  ["resolve.evidence", "Bằng chứng hoàn thành"],
+  ["resolve.support", "Hỗ trợ"],
+  ["resolve.barrier", "Rủi ro & cách xử lý"],
+];
+
+const PERSONAL: Record<number, [string, string][]> = { 1: PERSONAL_01, 2: PERSONAL_02 };
+
 export function qlctLesson(number: number) {
   return QLCT_LESSONS.find((lesson) => lesson.number === number);
 }
 
 export function qlctFields(number: number): WorkbookField[] {
-  return qlctLesson(number) ? PERSONAL.map(([path, label]) => ({ path, label })) : [];
+  return qlctLesson(number) ? (PERSONAL[number] ?? []).map(([path, label]) => ({ path, label })) : [];
 }
 
 export function isQlctStorageKey(storageKey: string | undefined) {

@@ -9,8 +9,9 @@
  *   lens    / <id>       one added view on a group                 anyone in the class; edit/delete: author or staff
  *   extract / <userId>   personal lesson learned                   the learner or staff; read: owner + staff
  *   resolve / <userId>   personal 90-day commitment                the learner or staff; read: owner + staff
+ *   vote    / <userId>   { choice } the learner's Activate vote   the learner or staff; read: owner + staff
  */
-export const BOARD_KINDS = ["setup", "member", "group", "lens", "extract", "resolve"] as const;
+export const BOARD_KINDS = ["setup", "member", "group", "lens", "extract", "resolve", "vote"] as const;
 export type BoardKind = (typeof BOARD_KINDS)[number];
 export const BOARD_DATA_MAX = 30000;
 export const BOARD_GROUPS_MAX = 12;
@@ -92,6 +93,7 @@ export function boardWriteError(input: {
       return null;
     case "extract":
     case "resolve":
+    case "vote":
       if (key !== String(actor.userId)) return "FORBIDDEN";
       return next === null ? "FORBIDDEN" : null;
   }
@@ -100,12 +102,12 @@ export function boardWriteError(input: {
 /** Personal slots are private to their owner and staff; everything else is shared with the class. */
 export function boardVisible(row: { kind: string; key: string }, actor: BoardActor) {
   if (actor.staff) return true;
-  if (row.kind === "extract" || row.kind === "resolve") return row.key === String(actor.userId);
+  if (row.kind === "extract" || row.kind === "resolve" || row.kind === "vote") return row.key === String(actor.userId);
   return true;
 }
 
 /** Owner recorded on a new slot. */
 export function boardOwner(kind: string, key: string, actorId: number) {
-  if (kind === "member" || kind === "extract" || kind === "resolve") return Number(key);
+  if (kind === "member" || kind === "extract" || kind === "resolve" || kind === "vote") return Number(key);
   return actorId;
 }

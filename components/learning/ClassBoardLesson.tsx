@@ -7,11 +7,13 @@ import type { BoardPerson } from "@/lib/class-board";
  * Runs a class-workshop lesson (e.g. source/vabix-qlct/buoi01/index.html) on the shared class board.
  * The lesson script gets `board` (rows + put/del + change events) and `root` (its element).
  * Polls /api/learn/board for rows with seq > last seen; a learner's own part is mirrored into their
- * lesson record so workbook, portfolio and admin pages show it like any other lesson.
+ * lesson record so workbook, portfolio and admin pages show it like any other lesson. A lesson can
+ * describe that part itself with board.summarize(() => ({ answers, progress })); otherwise the Buổi 01 shape is used.
  */
 type Row = { kind: string; key: string; userId: number; data: Record<string, unknown>; updatedAt: string };
 type Wire = { kind: string; key: string; userId: number; data: string | null; seq: number; updatedAt: string };
 type Result = { ok: boolean; error?: string };
+type Summary = { answers: Record<string, unknown>; progress: number };
 
 export type ClassBoardProps = {
   token: string;
@@ -82,6 +84,7 @@ export function ClassBoardLesson(props: ClassBoardProps) {
     let timer: number | undefined;
     let syncTimer: number | undefined;
     let lastSynced = record ? JSON.stringify(record.initialAnswers ?? {}) : "";
+    let summarize: (() => Summary) | null = null;
 
     const apply = (wire: Wire) => {
       const id = `${wire.kind}/${wire.key}`;
@@ -92,7 +95,9 @@ export function ClassBoardLesson(props: ClassBoardProps) {
 
     const syncRecord = () => {
       if (!record) return;
-      const mine = personal(rows, me);
+      let mine: Summary;
+      try { mine = summarize ? summarize() : personal(rows, me); } catch { return; }
+      mine = { answers: mine.answers, progress: Math.max(0, Math.min(100, Math.round(Number(mine.progress) || 0))) };
       propsRef.current.onProgress?.(mine.progress);
       const body = JSON.stringify(mine.answers);
       if (body === lastSynced) return;
@@ -148,7 +153,7 @@ export function ClassBoardLesson(props: ClassBoardProps) {
         const body = await response.json().catch(() => ({})) as { ok?: boolean; error?: string; seq?: number };
         if (!response.ok || !body.ok) return { ok: false, error: response.status === 401 ? "EXPIRED" : body.error || "ERROR" };
         // Shown at once; `seq` is not moved, so the next poll still picks up everyone else's writes.
-        const owner = rows.get(`${kind}/${key}`)?.userId ?? (kind === "member" || kind === "extract" || kind === "resolve" ? Number(key) : me.id);
+        const owner = rows.get(`${kind}/${key}`)?.userId ?? (kind === "member" || kind === "extract" || kind === "resolve" || kind === "vote" ? Number(key) : me.id);
         apply({ kind, key, userId: owner, data: data === null ? null : JSON.stringify(data), seq: body.seq ?? 0, updatedAt: new Date().toISOString() });
         syncRecord();
         return { ok: true };
@@ -166,6 +171,7 @@ export function ClassBoardLesson(props: ClassBoardProps) {
       put: (kind: string, key: string, data: Record<string, unknown>) => write(kind, key, data),
       del: (kind: string, key: string) => write(kind, key, null),
       onChange: (listener: () => void) => { listeners.add(listener); },
+      summarize: (fn: () => Summary) => { summarize = fn; },
     };
 
     root.innerHTML = source.html;
