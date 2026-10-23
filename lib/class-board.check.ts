@@ -26,16 +26,24 @@ for (const [i, lesson] of QLCT_LESSONS.entries()) {
 assert(isQlctCourse(QLCT_COURSE.slug) && !isQlctCourse("vabix-applier") && !isQlctCourse("bmdo-k03"), "course detection");
 assert(fs.existsSync(`public${QLCT_COURSE.partnerLogo}`), "partner logo shipped");
 
-// --- Lesson file: one script that runs with (board, root), no localStorage, required header/footer ---
-const html = fs.readFileSync(QLCT_LESSONS[0].source, "utf8");
-const script = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/)?.[1] ?? "";
-new Function("board", "root", script);
-assert(!/localStorage/.test(script), "lesson keeps no data in localStorage");
-assert(!/onclick="/.test(html), "no inline handlers (script runs in a closure)");
-assert(html.includes("PHẨM CHẤT LÃNH ĐẠO &amp; TRÍ TUỆ KINH DOANH") && html.includes("LEADERSHIP CHARACTER &amp; BUSINESS ACUMEN"), "required header");
-assert(html.includes("LÃNH ĐẠO TỈNH THỨC &amp; KIẾN TẠO"), "required footer");
-assert(html.includes("Công ty Cổ phần Bê tông Ly tâm Thủ Đức 1") && !/TDC1/.test(html), "partner named in full, no TDC1");
-assert(/--forest:#1a3d2c/.test(html) && /--gold:#d89830/.test(html), "VABIX brand tokens");
+// --- Lesson files: one script run with (board, root), no browser storage, required header/footer, VABIX brand ---
+for (const lesson of QLCT_LESSONS) {
+  const html = fs.readFileSync(lesson.source, "utf8");
+  const script = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/)?.[1] ?? "";
+  new Function("board", "root", script);
+  const tag = `Buổi ${lesson.code}`;
+  assert(!/localStorage|location\.hash/.test(script), `${tag}: no browser storage or hash routing`);
+  assert(!/onclick="/.test(html), `${tag}: no inline handlers (script runs in a closure)`);
+  assert(html.includes(lesson.titleUpper.replace("&", "&amp;")) && html.includes(lesson.titleUpperEn.replace("&", "&amp;")), `${tag}: required header`);
+  assert(html.includes(`BUỔI ${lesson.code}`), `${tag}: session number`);
+  assert(html.includes("LÃNH ĐẠO TỈNH THỨC &amp; KIẾN TẠO"), `${tag}: required footer`);
+  assert(html.includes("Công ty Cổ phần Bê tông Ly tâm Thủ Đức 1") && !/TDC1/.test(html), `${tag}: partner named in full, no TDC1`);
+  assert(/--forest:#1a3d2c/.test(html) && /--gold:#d89830/.test(html), `${tag}: VABIX brand tokens`);
+  assert(qlctFields(lesson.number).length > 0, `${tag}: workbook fields`);
+}
+const b02 = fs.readFileSync(QLCT_LESSONS[1].source, "utf8");
+assert(b02.includes("/vendor/pptxgen-4.0.0.bundle.js") && fs.existsSync("public/vendor/pptxgen-4.0.0.bundle.js"), "Buổi 02: PPTX library served locally, loaded on demand");
+assert(b02.includes("board.summarize(") && /MAPY/.test(b02) && /CRISS/.test(b02), "Buổi 02: People Wheel content and own summary");
 
 // --- Personal record fields read back from what ClassBoardLesson saves ---
 const saved = { group: "NHÓM 2", extract: { p1: "Bài học", sentence: "Câu" }, resolve: { action: "Làm", commitment: "Cam kết" } };
@@ -61,6 +69,8 @@ assert(w({ kind: "member", key: "8", dataJson: j({ groupId: 3 }) }) === "FORBIDD
 assert(w({ kind: "member", key: "7", dataJson: j({ groupId: 99 }) }) === "BAD_DATA", "group id range");
 assert(w({ kind: "extract", key: "7" }) === null && w({ kind: "extract", key: "8" }) === "FORBIDDEN", "extract is personal");
 assert(w({ kind: "resolve", key: "7", dataJson: null }) === "FORBIDDEN", "learner cannot delete commitment");
+assert(w({ kind: "vote", key: "7", dataJson: j({ choice: 1 }) }) === null && w({ kind: "vote", key: "8", dataJson: j({ choice: 1 }) }) === "FORBIDDEN", "vote is personal");
+assert(boardVisible({ kind: "vote", key: "8" }, learner) === false && boardVisible({ kind: "vote", key: "8" }, staff), "votes visible to owner and staff");
 assert(w({ kind: "lens", key: "labc123" }) === null, "learner adds lens");
 assert(w({ kind: "lens", key: "labc123", existing: { userId: 8, deleted: 0, dataJson: "{}" } }) === "FORBIDDEN", "only author edits lens");
 assert(w({ kind: "lens", key: "labc123", dataJson: null, existing: { userId: 7, deleted: 0, dataJson: "{}" } }) === null, "author deletes own lens");
