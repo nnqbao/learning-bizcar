@@ -3,9 +3,12 @@ import { getSession } from "@/lib/auth";
 import { answerFor, isLessonUnlocked, learningState, legacyAnswerFor } from "@/lib/access";
 import { BMDO_SLUG } from "@/convex/codes";
 import { lessonByNumber, type LessonMeta } from "@/lib/course";
-import { loadLessonSource } from "@/lib/lesson-source";
+import { loadBoardLesson, loadLessonSource } from "@/lib/lesson-source";
 import { babosoraLesson, isBabosoraCourse } from "@/lib/babosora-applier";
 import { isVabixCourse, vabixLesson } from "@/lib/vabix-applier";
+import { isQlctCourse, qlctLesson } from "@/lib/qlct-course";
+import { boardToken } from "@/lib/class-board";
+import { api, appSecret, q } from "@/lib/convex";
 import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
 import { studioForLesson } from "@/lib/studios/registry";
@@ -29,11 +32,12 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   if (!row) notFound();
   const vabix = isVabixCourse(slug, row.storage_key);
   const babosora = isBabosoraCourse(slug, row.storage_key);
-  const meta = vabix ? vabixLesson(number) : babosora ? babosoraLesson(number) : lessonByNumber(number);
+  const qlct = isQlctCourse(slug, row.storage_key);
+  const meta = vabix ? vabixLesson(number) : babosora ? babosoraLesson(number) : qlct ? qlctLesson(number) : lessonByNumber(number);
   if (!meta) notFound();
   const published = state.course.slug === BMDO_SLUG ? await lessonPublished(number) : true;
   if (!published || !(await isLessonUnlocked(user.id, number, slug))) redirect(`/learn/course/${state.course.slug}`);
-  const lesson: LessonMeta = vabix || babosora
+  const lesson: LessonMeta = vabix || babosora || qlct
     ? { ...meta, title: row.title, framework: row.framework, summary: row.summary, storageKey: row.storage_key }
     : meta;
   const saved = await answerFor(user.id, row.id, slug);
@@ -42,8 +46,8 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   const studio = state.course.slug === BMDO_SLUG ? studioForLesson(number) : null;
   const studioLesson = studio && studio.oldKey === row.storage_key ? studio : null;
   const studioSource = studioLesson ? loadStudioSource(studioLesson) : null;
-  const source = nativeStudio || studioLesson
-    ? { css: "", html: "", script: "", scopeClass: "bizcar-lesson", showSample: false, showPhases: true }
+  const source = nativeStudio || studioLesson || qlct
+    ? { css: "", html: "", script: "", scopeClass: "bizcar-lesson", showSample: false, showPhases: !qlct }
     : loadLessonSource(number, { slug, storageKey: row.storage_key });
   // Buổi 04 native studio: `saved` is the new-version record (its own answer key); the old record is
   // loaded separately, read-only, for «Bài làm phiên bản cũ». Nothing here is written back to it.
@@ -51,6 +55,17 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   const legacyAnswers = legacy ? JSON.parse(legacy.answers_json) as unknown : null;
   const answers = saved ? JSON.parse(saved.answers_json) as Record<string, unknown> : {};
   const done = saved ? JSON.parse(saved.phases_done_json) as string[] : [];
+  // QLCT: the lesson is a class workshop on the shared board of the learner's class.
+  const qlctMeta = qlct ? qlctLesson(number) : null;
+  const classBoard = qlctMeta ? {
+    token: boardToken({ userId: user.id, cohortId: enrollment.cohort_id, lessonNumber: number, staff: false }, appSecret()),
+    me: { id: user.id, name: user.displayName },
+    staff: false,
+    roster: await q((convex, secret) => convex.query(api.classBoard.roster, { secret, cohortId: enrollment.cohort_id })),
+    source: loadBoardLesson(qlctMeta.source, "qlct-lesson"),
+    scopeClass: "qlct-lesson",
+    record: { courseSlug: state.course.slug, lessonNumber: number, initialAnswers: answers },
+  } : null;
   const lessonNav = await Promise.all(rows.map(async (item) => ({
     number: item.number,
     code: String(item.number).padStart(2, "0"),
@@ -82,6 +97,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       legacyAnswers={legacyAnswers}
       studioSource={studioSource}
       standardShell={state.course.slug === BMDO_SLUG && !vabix && !babosora}
+      classBoard={classBoard}
     />
   );
 }

@@ -10,6 +10,7 @@ import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 import { SelfEnroll } from "@/components/admin/SelfEnroll";
 import { CohortForm } from "@/components/admin/CohortForm";
+import { isQlctCourse, QLCT_LESSONS } from "@/lib/qlct-course";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,17 @@ export default async function CohortDetailPage({
           })),
         }}
       />
+      {course && isQlctCourse(course.slug) && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h3>Bảng lớp · thao trường nhóm</h3>
+          <p className="muted">Mở trên máy giảng viên để xếp nhóm, theo dõi V1/V2, Lens, Extract/Resolve và xuất dữ liệu cả lớp.</p>
+          <p className="row-actions">
+            {QLCT_LESSONS.map((lesson) => (
+              <Link key={lesson.number} className="btn dark" href={`/admin/learning/board/${cohort.id}/${lesson.number}`}>Buổi {lesson.code} · {lesson.title}</Link>
+            ))}
+          </p>
+        </div>
+      )}
       <div className="card" style={{ marginTop: 12 }}>
         <h3>Quản lý học viên</h3>
         <p className="muted">{cohort.org} · Review {cohort.review_enabled ? "bật" : "tắt"} · {cohort.sessions.length} buổi · {lessonCount} bài trong buổi. Thêm học viên vào đúng lớp này.</p>

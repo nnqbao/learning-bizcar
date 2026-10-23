@@ -45,6 +45,7 @@
     "lib/babosora-applier.check.ts",
     "lib/vrim-lesson.check.ts",
     "lib/bmdo-studios.check.ts",
-    "lib/bmdo-shell.check.tsx"
+    "lib/bmdo-shell.check.tsx",
+    "lib/class-board.check.ts"
   ]
 }

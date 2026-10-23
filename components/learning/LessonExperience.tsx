@@ -14,9 +14,11 @@ import { studioForLesson } from "@/lib/studios/registry";
 import { LessonHeader, LessonToolsContext } from "./LessonShell";
 import "./lesson-shell.css";
 import type { StudioSource } from "@/lib/studios/source";
+import type { ClassBoardProps } from "./ClassBoardLesson";
 
 const VrimLesson = dynamic(() => import("./VrimLesson").then((mod) => mod.VrimLesson));
 const StudioLesson = dynamic(() => import("./StudioLesson").then((mod) => mod.StudioLesson), { ssr: false });
+const ClassBoardLesson = dynamic(() => import("./ClassBoardLesson").then((mod) => mod.ClassBoardLesson), { ssr: false });
 
 type LessonLink = { number: number; code: string; title: string; framework: string; status: string; unlocked: boolean };
 
@@ -42,6 +44,7 @@ export function LessonExperience({
   legacyAnswers = null,
   studioSource = null,
   standardShell = false,
+  classBoard = null,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -67,6 +70,8 @@ export function LessonExperience({
   studioSource?: StudioSource | null;
   /** BMDO-K03: the standard lesson header and toolbar (components/learning/LessonShell.tsx). */
   standardShell?: boolean;
+  /** Class-workshop lesson on the shared class board (e.g. QLCT): replaces the lesson stage. */
+  classBoard?: Omit<ClassBoardProps, "onProgress"> | null;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -188,7 +193,9 @@ export function LessonExperience({
             />
           )}
           <LessonToolsContext.Provider value={standardShell ? { slot: toolsSlot, exportLabel: t.shellExport, printLabel: t.print } : null}>
-          {studioSource && studioForLesson(lesson.number) ? (
+          {classBoard ? (
+            <ClassBoardLesson {...classBoard} onProgress={setProgress} />
+          ) : studioSource && studioForLesson(lesson.number) ? (
             <StudioLesson
               config={studioForLesson(lesson.number)!}
               source={studioSource}

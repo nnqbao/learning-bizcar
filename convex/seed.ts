@@ -1,8 +1,9 @@
-import { mutation, type MutationCtx } from "./_generated/server";
+import { internalMutation, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { CMS_BLOCKS, COURSE, cohortInstructorIds, LESSONS, PERMISSION_PRESETS, PRACTICAL_INSTRUCTOR_DESCRIPTION, PRACTICAL_INSTRUCTOR_GROUP, PRACTICAL_INSTRUCTOR_MENUS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
 import { BABOSORA_COURSE, BABOSORA_LESSONS } from "./babosoraApplier";
 import { VABIX_COURSE, VABIX_LESSONS } from "./vabixApplier";
+import { QLCT_COURSE, QLCT_LESSONS } from "./qlctCourse";
 import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode } from "./codes";
 import { gate, nextId, now } from "./helpers";
 
@@ -722,6 +723,90 @@ export const addCourseBabosoraApplier = mutation({
       cohortId,
       cohortInserted,
     };
+  },
+});
+
+/**
+ * VABIX · Quản lý cấp trung thực chiến (partner course, convex/qlctCourse.ts). Idempotent: creates the course,
+ * any lesson not yet there (attached to existing classes), and the first class if the course has none.
+ *   npx convex run seed:addCourseQlct
+ */
+export const addCourseQlct = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const orgs = await ctx.db.query("organizations").collect();
+    const org = orgs.find((row) => row.name === "VABIX") ?? orgs[0];
+    if (!org) throw new Error("CATALOG_MISSING");
+    let course = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", QLCT_COURSE.slug)).unique();
+    let courseInserted = false;
+    if (!course) {
+      const courseId = await nextId(ctx, "courses");
+      await ctx.db.insert("courses", {
+        legacyId: courseId,
+        slug: QLCT_COURSE.slug,
+        code: QLCT_COURSE.code,
+        title: QLCT_COURSE.title,
+        tagline: QLCT_COURSE.tagline,
+        intro: "",
+        managementCode: courseManagementCode(QLCT_COURSE.code),
+      });
+      course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", courseId)).unique();
+      courseInserted = true;
+    }
+    if (!course) throw new Error("COURSE_INSERT_FAILED");
+    const courseRow = course;
+    const insertedLessons: number[] = [];
+    for (const spec of QLCT_LESSONS) {
+      const existing = await ctx.db
+        .query("lessons")
+        .withIndex("by_course_number", (q) => q.eq("courseId", courseRow.legacyId).eq("number", spec.number))
+        .unique();
+      if (existing) continue;
+      const lessonId = await nextId(ctx, "lessons");
+      await ctx.db.insert("lessons", {
+        legacyId: lessonId,
+        courseId: courseRow.legacyId,
+        number: spec.number,
+        title: spec.title,
+        framework: spec.framework,
+        summary: spec.summary,
+        groupName: spec.group,
+        hasReport: spec.hasReport ? 1 : 0,
+        storageKey: spec.storageKey,
+        contentVersion: spec.contentVersion,
+        schemaVersion: spec.schemaVersion,
+        archived: 0,
+        sortOrder: spec.number,
+      });
+      await attachNewLesson(ctx, courseRow.legacyId, lessonId, spec.number);
+      insertedLessons.push(spec.number);
+    }
+    const cohorts = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseRow.legacyId);
+    let cohortInserted = false;
+    let cohortId = cohorts[0]?.legacyId ?? 0;
+    if (!cohortId) {
+      cohortId = await nextId(ctx, "cohorts");
+      await ctx.db.insert("cohorts", {
+        legacyId: cohortId,
+        organizationId: org.legacyId,
+        courseId: courseRow.legacyId,
+        name: QLCT_COURSE.cohortName,
+        unlockMode: "all_open",
+        reviewEnabled: 1,
+        createdAt: now(),
+        code: classManagementCode(QLCT_COURSE.code, 1),
+        instructorId: null,
+        lessonsScoped: 1,
+      });
+      const seededLessons = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", courseRow.legacyId)).collect();
+      for (const lesson of seededLessons) {
+        await ctx.db.insert("cohortLessons", { cohortId, lessonId: lesson.legacyId, sortOrder: lesson.sortOrder ?? lesson.number });
+      }
+      cohortInserted = true;
+    }
+    const cohortRow = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", cohortId)).unique();
+    if (cohortRow) await migrateCohortSessions(ctx, cohortRow);
+    return { ok: true, courseId: courseRow.legacyId, courseInserted, lessonsInserted: insertedLessons, cohortId, cohortInserted };
   },
 });
 
