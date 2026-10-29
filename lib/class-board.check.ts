@@ -41,6 +41,16 @@ for (const lesson of QLCT_LESSONS) {
   assert(/--forest:#1a3d2c/.test(html) && /--gold:#d89830/.test(html), `${tag}: VABIX brand tokens`);
   assert(qlctFields(lesson.number).length > 0, `${tag}: workbook fields`);
 }
+// Shared boards put one learner's text on everyone's screen. In each function that reads group data
+// (`d = g.v1.data`), fields must go through h()/nl()/num() in HTML. PPTX export builds plain text, so it is exempt.
+for (const lesson of QLCT_LESSONS) {
+  const script = fs.readFileSync(lesson.source, "utf8").split("<script>")[1] ?? "";
+  for (const fn of script.split(/\n(?=(?:async )?function )/)) {
+    if (!/\bd\s*=\s*g\.v1\.data/.test(fn) || fn.startsWith("async function exportPptx(")) continue;
+    const raw = fn.match(/\$\{d(?:\.\w+|\[[^\]]+\])[^}]*\}/g) ?? [];
+    assert(raw.length === 0, `Buổi ${lesson.code}: group fields rendered without h(): ${raw.slice(0, 3).join(" ")}`);
+  }
+}
 const b02 = fs.readFileSync(QLCT_LESSONS[1].source, "utf8");
 assert(b02.includes("/vendor/pptxgen-4.0.0.bundle.js") && fs.existsSync("public/vendor/pptxgen-4.0.0.bundle.js"), "Buổi 02: PPTX library served locally, loaded on demand");
 assert(b02.includes("board.summarize(") && /MAPY/.test(b02) && /CRISS/.test(b02), "Buổi 02: People Wheel content and own summary");
