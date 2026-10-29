@@ -326,6 +326,21 @@ async function purgeUserOwned(ctx: MutationCtx, userId: number, usernameLower: s
   for (const row of notifications) await ctx.db.delete(row._id);
   const members = (await ctx.db.query("discussionMembers").collect()).filter((row) => row.userId === userId);
   for (const row of members) await ctx.db.delete(row._id);
+  // Class boards: the person's own slots (group pick, extract, resolve, vote) become tombstones with a new seq,
+  // so open boards drop them on their next poll. Group work and lenses stay with the class.
+  const personal = new Set(["member", "extract", "resolve", "vote"]);
+  const slots = (await ctx.db.query("classBoardRows").collect())
+    .filter((row) => personal.has(row.kind) && row.key === String(userId) && row.deleted !== 1);
+  for (const row of slots) {
+    await ctx.db.patch(row._id, { dataJson: "", deleted: 1, seq: await nextId(ctx, "classBoardRows"), updatedAt: now(), updatedBy: userId });
+  }
+  // Instructor seats: take the person off every class they teach.
+  for (const cohort of await ctx.db.query("cohorts").collect()) {
+    const ids = cohortInstructorIds(cohort);
+    if (!ids.includes(userId)) continue;
+    const rest = ids.filter((id) => id !== userId);
+    await ctx.db.patch(cohort._id, { instructorIds: rest, instructorId: rest[0] ?? null });
+  }
 }
 
 export const deleteUserAccount = mutation({
