@@ -118,7 +118,9 @@ export function VrimLesson(props: Props) {
       propsRef.current.onSaveState("saving");
       setState((current) => ({ ...current, ui: { section: next } }));
     };
-    return () => { delete window.__bizcarShow; };
+    // Pending edits are already debounced into flush(); the shell calls this before Complete / Submit.
+    window.__bizcarFlush = () => flush();
+    return () => { delete window.__bizcarShow; delete window.__bizcarFlush; };
   }, []);
 
   useEffect(() => {

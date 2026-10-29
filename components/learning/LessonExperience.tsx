@@ -86,6 +86,7 @@ export function LessonExperience({
   const [savedAt, setSavedAt] = useState("");
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
   const [toolsSlot, setToolsSlot] = useState<HTMLElement | null>(null);
 
   function go(next: PhaseId) {
@@ -97,9 +98,19 @@ export function LessonExperience({
 
   async function post(url: string) {
     setBusy(url);
-    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonNumber: lesson.number, courseSlug }) });
-    setBusy("");
-    if (response.ok) router.refresh();
+    setNotice("");
+    try {
+      // Save what was just typed first, so Complete / Submit acts on the latest work.
+      await window.__bizcarFlush?.();
+      const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonNumber: lesson.number, courseSlug }) });
+      if (response.ok) { router.refresh(); return; }
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      setNotice(actionError(payload?.error, t));
+    } catch {
+      setNotice(t.actionOffline);
+    } finally {
+      setBusy("");
+    }
   }
 
   const saveLabel = save === "saving" ? t.savingNow
@@ -186,6 +197,7 @@ export function LessonExperience({
             </button>
           ))}
         </div>}
+        {notice && <p className="notice no-print" role="alert" style={{ margin: "12px 24px 0" }}><strong>{notice}</strong></p>}
         <div className="shell-content">
           {standardShell && (
             <LessonHeader
@@ -255,6 +267,14 @@ export function LessonExperience({
       </div>
     </div>
   );
+}
+
+/** Plain-language reason for a failed Complete / Submit (the API returns short codes). */
+function actionError(code: string | undefined, t: ReturnType<typeof messages>) {
+  if (code === "EMPTY") return t.actionEmpty;
+  if (code === "REVIEW_OFF") return t.actionReviewOff;
+  if (code === "LOCKED") return t.actionLocked;
+  return t.actionFailed;
 }
 
 function labelStatus(status: string, locale: Locale) {
