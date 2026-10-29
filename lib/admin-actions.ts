@@ -90,6 +90,18 @@ export async function setAccountActive(userId: number, active: boolean) {
   const user = await actor(true);
   await q((convex, secret) => convex.mutation(api.writes.setAccountActive, { secret, actorId: user.id, userId, active }));
   revalidatePath("/admin/learning/learners");
+  revalidatePath("/admin/organization/users");
+}
+
+/** Super admin only (checked in writes.setUserRole). */
+export async function setUserRole(formData: FormData) {
+  const user = await actor(true);
+  const userId = Number(formData.get("userId"));
+  const role = String(formData.get("role") || "");
+  if (!Number.isInteger(userId) || (role !== "admin" && role !== "mod" && role !== "user")) return;
+  const result = await q((convex, secret) => convex.mutation(api.writes.setUserRole, { secret, actorId: user.id, userId, role }));
+  revalidatePath("/admin/organization/users");
+  if ("error" in result && result.error) redirect(`/admin/organization/users?error=${encodeURIComponent(result.error)}`);
 }
 
 export async function deleteLearnerAccount(userId: number): Promise<{ ok: true } | { error: string }> {
@@ -116,7 +128,8 @@ export async function deleteLearnerAccount(userId: number): Promise<{ ok: true }
 export async function resetPassword(userId: number) {
   const user = await actor(true);
   const temp = temporaryPassword();
-  await q((convex, secret) => convex.mutation(api.writes.resetPassword, { secret, actorId: user.id, userId, passwordHash: hashPassword(temp) }));
+  const result = await q((convex, secret) => convex.mutation(api.writes.resetPassword, { secret, actorId: user.id, userId, passwordHash: hashPassword(temp) }));
+  if (result && "error" in result && result.error) throw new Error(result.error);
   revalidatePath("/admin/learning/learners");
   revalidatePath("/admin/organization/users");
   return temp;

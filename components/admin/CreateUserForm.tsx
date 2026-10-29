@@ -6,9 +6,12 @@ import { createAccount, type CreateAccountState } from "@/lib/admin-actions";
 export function CreateUserForm({
   departments,
   groups,
+  canCreateAdmin = false,
 }: {
   departments: { id: number; name: string }[];
   groups: { id: number; name: string }[];
+  /** Only a super admin creates admin accounts (checked again on the server). */
+  canCreateAdmin?: boolean;
 }) {
   const [state, action, pending] = useActionState(createAccount, {} as CreateAccountState);
   const [role, setRole] = useState("user");
@@ -23,7 +26,7 @@ export function CreateUserForm({
         <select id="role" name="role" value={role} onChange={(event) => setRole(event.target.value)}>
           <option value="user">User</option>
           <option value="mod">Mod</option>
-          <option value="admin">Admin</option>
+          {canCreateAdmin && <option value="admin">Admin</option>}
         </select>
       </div>
       {role === "user" && (

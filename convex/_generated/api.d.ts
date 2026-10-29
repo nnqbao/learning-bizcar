@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountRules from "../accountRules.js";
 import type * as babosoraApplier from "../babosoraApplier.js";
 import type * as catalog from "../catalog.js";
 import type * as catalogScope from "../catalogScope.js";
@@ -32,6 +33,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountRules: typeof accountRules;
   babosoraApplier: typeof babosoraApplier;
   catalog: typeof catalog;
   catalogScope: typeof catalogScope;

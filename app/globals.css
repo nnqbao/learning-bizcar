@@ -334,3 +334,5 @@ th { font-size: 11px; letter-spacing: 0.08em; line-height: 1.4; text-transform: 
   .bizcar-lesson .panel { display: block !important; break-before: page; }
   .bizcar-lesson .panel:first-of-type { break-before: auto; }
 }
+
+.badge-super { display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--forest); color: var(--gold-2); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
