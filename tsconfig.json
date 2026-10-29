@@ -47,6 +47,7 @@
     "lib/bmdo-studios.check.ts",
     "lib/bmdo-shell.check.tsx",
     "lib/class-board.check.ts",
-    "lib/instructor-view.check.ts"
+    "lib/instructor-view.check.ts",
+    "lib/delete-user.check.ts"
   ]
 }
