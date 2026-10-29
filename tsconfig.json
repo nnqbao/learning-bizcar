@@ -46,6 +46,7 @@
     "lib/vrim-lesson.check.ts",
     "lib/bmdo-studios.check.ts",
     "lib/bmdo-shell.check.tsx",
-    "lib/class-board.check.ts"
+    "lib/class-board.check.ts",
+    "lib/instructor-view.check.ts"
   ]
 }

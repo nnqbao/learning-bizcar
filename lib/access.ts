@@ -77,6 +77,21 @@ export async function legacyAnswerFor(userId: number, lessonId: number, courseSl
 
 const DONE = new Set(["completed", "submitted", "reviewed"]);
 
+/**
+ * Instructor view: the class this person teaches in the course (or, for admin/mod, its first class).
+ * Only for people without a learner seat in the course; they can open every lesson, nothing is saved.
+ */
+export const instructorClassFor = cache(async (user: SessionUser, courseSlug: string) => {
+  const seat = await enrollmentFor(user.id, courseSlug);
+  if (seat?.member_role === "learner") return null;
+  return q((convex, secret) => convex.query(api.reads.instructorClass, {
+    secret,
+    userId: user.id,
+    courseSlug,
+    staff: user.role === "admin" || user.role === "mod",
+  }));
+});
+
 export async function isLessonUnlocked(userId: number, lessonNumber: number, courseSlug?: string) {
   const state = await loadState(userId, courseSlug);
   const enrollment = state?.enrollment;

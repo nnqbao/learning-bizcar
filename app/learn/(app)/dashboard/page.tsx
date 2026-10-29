@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answersFor, learningState } from "@/lib/access";
+import { answersFor, learningState, instructorClassFor } from "@/lib/access";
 import { canSee } from "@/lib/permissions";
 import { CourseMap } from "@/components/learning/CourseMap";
 import { getLocale } from "@/lib/locale";
@@ -38,6 +38,7 @@ export default async function DashboardPage() {
   const continueLocal = continueLesson ? vabixDisplay(continueLesson.storage_key, continueLesson.number, locale) ?? babosoraDisplay(continueLesson.storage_key, continueLesson.number, locale) ?? qlctDisplay(continueLesson.storage_key, continueLesson.number, locale) : null;
   const recentLocal = recentLesson ? vabixDisplay(recentLesson.storage_key, recentLesson.number, locale) ?? babosoraDisplay(recentLesson.storage_key, recentLesson.number, locale) ?? qlctDisplay(recentLesson.storage_key, recentLesson.number, locale) : null;
   const notices = await cmsAnnouncements(locale);
+  const teaching = enrollment ? null : await instructorClassFor(user, course.slug);
 
   return (
     <main className="page">
@@ -47,14 +48,15 @@ export default async function DashboardPage() {
       {notices.map((item) => (
         <p className="notice" key={item.id}><strong>{item.title}</strong><span>{item.body}</span></p>
       ))}
-      {!enrollment && user.role === "admin" && (
+      {teaching?.mine && <p className="notice"><strong>{t.instructorOf} {teaching.name}</strong><span>{t.instructorHint}</span></p>}
+      {!enrollment && !teaching?.mine && user.role === "admin" && (
         <p className="notice">
           <strong>{t.notEnrolled}</strong>
           <span>{t.notEnrolledAdmin}</span>
           <Link className="btn gold" href="/admin/learning">{t.adminDesk}</Link>
         </p>
       )}
-      {!enrollment && user.role !== "admin" && <p className="notice"><strong>{t.notEnrolled}</strong><span>{t.notEnrolledHint}</span></p>}
+      {!enrollment && !teaching?.mine && user.role !== "admin" && <p className="notice"><strong>{t.notEnrolled}</strong><span>{t.notEnrolledHint}</span></p>}
       <article className="card" style={{ marginTop: 22 }}>
         <div className="eyebrow">{t.discussionEyebrow}</div>
         <h2 className="serif" style={{ fontSize: 32 }}>{t.discussionGroupCta}</h2>
@@ -91,7 +93,7 @@ export default async function DashboardPage() {
           ))}
         </div>
       )}
-      <CourseMap userId={user.id} locale={locale} courseSlug={course.slug} />
+      <CourseMap userId={user.id} locale={locale} courseSlug={course.slug} openAll={Boolean(teaching)} />
     </main>
   );
 }

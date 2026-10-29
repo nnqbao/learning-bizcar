@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { CourseMap } from "@/components/learning/CourseMap";
-import { learningState } from "@/lib/access";
+import { learningState, instructorClassFor } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { canSee } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -20,7 +20,8 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   const state = await learningState(user.id, slug);
   if (!state || state.course.slug !== slug) notFound();
   const course = state.course;
-  const enrolledHere = Boolean(state.enrollment) || (state.enrollments.length === 0 && slug === BMDO_SLUG);
+  const teaching = state.enrollment ? null : await instructorClassFor(user, slug);
+  const enrolledHere = Boolean(state.enrollment) || Boolean(teaching) || (state.enrollments.length === 0 && slug === BMDO_SLUG);
   if (!enrolledHere) notFound();
   const locale = await getLocale();
   const t = messages(locale);
@@ -41,7 +42,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
       <div className="eyebrow">{course.management_code || course.code}</div>
       <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 56px)" }}>{vabix || babosora || qlct || course.slug !== BMDO_SLUG ? course.title : t.mapTitle}</h1>
       <p className="lede">{lede}</p>
-      <CourseMap userId={user.id} locale={locale} courseSlug={course.slug} />
+      <CourseMap userId={user.id} locale={locale} courseSlug={course.slug} openAll={Boolean(teaching)} />
     </main>
   );
 }
