@@ -386,7 +386,7 @@ export async function createAccount(_prev: CreateAccountState, formData: FormDat
   const roleRaw = String(formData.get("role") || "");
   if (roleRaw !== "admin" && roleRaw !== "mod" && roleRaw !== "user") return { error: "Vai trò không hợp lệ." };
   if (!username || !displayName) return { error: "Thiếu thông tin tài khoản." };
-  const departmentId = roleRaw === "user" ? Number(formData.get("departmentId")) || null : null;
+  const departmentId = null; // departments are no longer set from the web (label only)
   const groupId = roleRaw === "user" ? Number(formData.get("groupId")) || null : null;
   const temp = temporaryPassword();
   const created = await q((convex, secret) => convex.mutation(api.writes.createAccount, {
@@ -407,9 +407,8 @@ export async function createAccount(_prev: CreateAccountState, formData: FormDat
 export async function assignUserAccess(formData: FormData) {
   const user = await actor(true);
   const userId = Number(formData.get("userId"));
-  const departmentId = Number(formData.get("departmentId")) || null;
   const groupId = Number(formData.get("groupId")) || null;
-  await q((convex, secret) => convex.mutation(api.writes.assignUserAccess, { secret, actorId: user.id, userId, departmentId, groupId }));
+  await q((convex, secret) => convex.mutation(api.writes.assignUserAccess, { secret, actorId: user.id, userId, groupId }));
   revalidatePath("/admin/organization/users");
 }
 

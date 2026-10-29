@@ -864,12 +864,17 @@ export const setUserRole = mutation({
 });
 
 export const assignUserAccess = mutation({
-  args: { ...secret, actorId: v.number(), userId: v.number(), departmentId: v.union(v.number(), v.null()), groupId: v.union(v.number(), v.null()) },
+  // departmentId is optional: the Users page no longer edits departments (a label only), so it is left as stored.
+  args: { ...secret, actorId: v.number(), userId: v.number(), departmentId: v.optional(v.union(v.number(), v.null())), groupId: v.union(v.number(), v.null()) },
   handler: async (ctx, args) => {
     gate(args.secret);
     const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
     if (!user || user.role !== "user") return;
-    await ctx.db.patch(user._id, { departmentId: args.departmentId, permissionGroupId: args.groupId, updatedAt: now() });
+    await ctx.db.patch(user._id, {
+      ...(args.departmentId === undefined ? {} : { departmentId: args.departmentId }),
+      permissionGroupId: args.groupId,
+      updatedAt: now(),
+    });
     await log(ctx, args.actorId, "user_access", "user", String(args.userId));
   },
 });

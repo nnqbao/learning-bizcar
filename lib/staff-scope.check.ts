@@ -60,6 +60,13 @@ const call = (fn: unknown, args: Record<string, unknown>) => (fn as { _handler: 
   await call(writes.createTask, { actorId: 3, title: "M", body: "", assigneeId: 51, dueAt: null });
   assert(rows("tasks").length === 2, "instructor tasks own learner; mod tasks anyone");
 
+  // Saving a permission group from the Users page keeps the stored department label (no longer edited on the web).
+  rows("users").find((u) => u.legacyId === 50)!.departmentId = 1;
+  await call(writes.assignUserAccess, { actorId: 1, userId: 50, groupId: 3 });
+  const saved = rows("users").find((u) => u.legacyId === 50)!;
+  assert(saved.departmentId === 1 && saved.permissionGroupId === 3, "group saved, department kept");
+  assert(!fs.readFileSync("app/admin/organization/users/page.tsx", "utf8").includes('name="departmentId"'), "department picker removed");
+
   // Pages filter by scope and keep admin-only controls for admins.
   const read = (p: string) => fs.readFileSync(p, "utf8");
   for (const p of ["app/admin/learning/page.tsx", "app/admin/learning/learners/page.tsx", "app/admin/learning/progress/page.tsx", "app/admin/learning/submissions/page.tsx", "app/admin/learning/cohorts/page.tsx", "app/admin/learning/courses/page.tsx", "app/admin/tasks/page.tsx"]) {

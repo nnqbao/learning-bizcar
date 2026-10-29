@@ -4,11 +4,9 @@ import { useActionState, useState } from "react";
 import { createAccount, type CreateAccountState } from "@/lib/admin-actions";
 
 export function CreateUserForm({
-  departments,
   groups,
   canCreateAdmin = false,
 }: {
-  departments: { id: number; name: string }[];
   groups: { id: number; name: string }[];
   /** Only a super admin creates admin accounts (checked again on the server). */
   canCreateAdmin?: boolean;
@@ -31,13 +29,6 @@ export function CreateUserForm({
       </div>
       {role === "user" && (
         <>
-          <div className="field">
-            <label htmlFor="departmentId">Phòng ban</label>
-            <select id="departmentId" name="departmentId" defaultValue="">
-              <option value="">Chưa gắn phòng ban</option>
-              {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          </div>
           <div className="field">
             <label htmlFor="groupId">Nhóm quyền</label>
             <select id="groupId" name="groupId" defaultValue="">
