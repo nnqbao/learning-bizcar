@@ -1,5 +1,7 @@
 import { api, q } from "@/lib/convex";
 import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { inCohort, staffScope } from "@/lib/staff-scope";
 import { addFeedback } from "@/lib/admin-actions";
 import { WORKBOOK, readPath } from "@/lib/course";
 import { babosoraFields, isBabosoraStorageKey } from "@/lib/babosora-applier";
@@ -10,8 +12,10 @@ export const dynamic = "force-dynamic";
 
 export default async function SubmissionsPage() {
   const user = await getSession();
-  void user;
-  const rows = await q((convex, secret) => convex.query(api.reads.submissionsView, { secret }));
+  if (!user) redirect("/learn/login");
+  // Instructors review only submissions from the classes they teach (Convex checks it again on feedback).
+  const scope = await staffScope(user);
+  const rows = (await q((convex, secret) => convex.query(api.reads.submissionsView, { secret }))).filter((row) => inCohort(scope, row.cohort_id));
   return (
     <main>
       <h1 className="serif">Bài nộp và phản hồi</h1>

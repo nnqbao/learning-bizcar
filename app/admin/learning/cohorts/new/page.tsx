@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 import Link from "next/link";
 import { api, q } from "@/lib/convex";
 import { CohortForm } from "@/components/admin/CohortForm";
@@ -5,6 +7,8 @@ import { CohortForm } from "@/components/admin/CohortForm";
 export const dynamic = "force-dynamic";
 
 export default async function NewCohortPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const actor = await getSession();
+  if (!actor || actor.role !== "admin") redirect("/admin/learning");
   const error = (await searchParams).error;
   const data = await q((convex, secret) => convex.query(api.reads.cohortsView, { secret }));
   return (

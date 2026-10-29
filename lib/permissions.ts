@@ -1,4 +1,5 @@
 import { learningState } from "./access";
+import { staffScope } from "./staff-scope";
 import { api, q } from "./convex";
 import type { Role } from "./db";
 
@@ -54,7 +55,10 @@ function withMenu(menus: MenuItem[], key: string) {
 }
 
 export async function menusFor(user: SessionUser) {
-  const state = await learningState(user.id);
+  const base = await learningState(user.id);
+  // An instructor without a learner seat lands on the course they teach, not the default one.
+  const teachingSlug = !base?.enrollments.length && user.role === "user" ? (await staffScope(user)).courseSlugs[0] : undefined;
+  const state = teachingSlug ? await learningState(user.id, teachingSlug) : base;
   const withMap = (menus: MenuItem[]) => state
     ? menus.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${state.course.slug}` } : item)
     : menus;
@@ -73,7 +77,8 @@ async function learnerMenus(user: SessionUser) {
   if (!user.permissionGroupId) return [];
   const rows = await q((convex, secret) => convex.query(api.reads.menuKeys, { secret, groupId: user.permissionGroupId! }));
   const allowed = new Set(rows.map((row) => row.menu_key));
-  return MENUS.filter((item) => allowed.has(item.key));
+  // Admin-only pages (users, departments, groups, CMS) are never shown to a role "user", whatever the group holds.
+  return MENUS.filter((item) => allowed.has(item.key) && !item.adminOnly);
 }
 
 export async function canSee(user: SessionUser, key: string) {

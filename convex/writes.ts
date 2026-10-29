@@ -6,6 +6,7 @@ import { BMDO_SLUG, answerKeyFor, isVersionedAnswerJson, classManagementCode, co
 import { ensureClassChannel } from "./discussion";
 import { answerKeys, gate, lessonByLegacy, nextId, now, passwordFlag, userByLegacy, versionRow } from "./helpers";
 import { accountActionError, createRoleError, isSuperAdmin as isSuperAdminActor } from "./accountRules";
+import { scopeHasCohort, scopeHasLearner, staffScopeFor } from "./staffScope";
 
 const secret = { secret: v.string() };
 
@@ -877,6 +878,9 @@ export const createTask = mutation({
   args: { ...secret, actorId: v.number(), title: v.string(), body: v.string(), assigneeId: v.number(), dueAt: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
     gate(args.secret);
+    // Admin/mod assign to anyone; an instructor only to learners of the classes they teach.
+    const scope = await staffScopeFor(ctx, args.actorId);
+    if (!scopeHasLearner(scope, args.assigneeId)) return { error: "Chỉ giao nhiệm vụ cho học viên trong lớp bạn phụ trách." as const };
     const id = await nextId(ctx, "tasks");
     await ctx.db.insert("tasks", {
       legacyId: id,
@@ -964,6 +968,8 @@ export const addFeedback = mutation({
     gate(args.secret);
     const submission = await ctx.db.query("lessonSubmissions").withIndex("by_legacy", (q) => q.eq("legacyId", args.submissionId)).unique();
     if (!submission) throw new Error("NOT_FOUND");
+    // Admin/mod review any submission; an instructor only those of the classes they teach.
+    if (!scopeHasCohort(await staffScopeFor(ctx, args.actorId), submission.cohortId)) throw new Error("FORBIDDEN");
     const id = await nextId(ctx, "coachFeedback");
     await ctx.db.insert("coachFeedback", { legacyId: id, submissionId: args.submissionId, authorId: args.actorId, body: args.body.trim(), createdAt: now() });
     await ctx.db.patch(submission._id, { reviewStatus: "reviewed" });

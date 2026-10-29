@@ -5,6 +5,9 @@ import { CreateLearnerForm } from "@/components/admin/CreateLearnerForm";
 import { LearnerControls } from "@/components/admin/LearnerControls";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { inCohort, staffScope } from "@/lib/staff-scope";
 
 function classLine(ids: number[], cohorts: { id: number; name: string; code: string; course_code: string }[]) {
   return ids.flatMap((id) => {
@@ -17,16 +20,21 @@ export const dynamic = "force-dynamic";
 
 export default async function LearnersPage() {
   const t = messages(await getLocale());
+  const user = await getSession();
+  if (!user) redirect("/learn/login");
+  // Instructors see only learners of the classes they teach; creating, locking and deleting accounts is admin work.
+  const scope = await staffScope(user);
+  const isAdmin = user.role === "admin";
   const data = await q((convex, secret) => convex.query(api.reads.learnersView, { secret }));
-  const cohorts = data.cohorts;
-  const learners = data.learners;
+  const cohorts = data.cohorts.filter((item) => inCohort(scope, item.id));
+  const learners = data.learners.filter((learner) => scope.all || learner.cohort_ids.some((id) => inCohort(scope, id)));
   return (
     <main>
       <p className="row-actions" style={{ marginBottom: 16 }}>
         <Link className="btn gold" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link>
       </p>
-      <div className="grid-2">
-        <CreateLearnerForm cohorts={cohorts} />
+      <div className={isAdmin ? "grid-2" : undefined}>
+        {isAdmin && <CreateLearnerForm cohorts={cohorts} />}
         <div className="card" style={{ padding: 0 }}>
         <table>
           <thead><tr><th>Học viên</th><th>Mã</th><th>Lớp</th><th></th></tr></thead>
@@ -36,7 +44,7 @@ export default async function LearnersPage() {
                 <td>{learner.display_name}<div className="muted">@{learner.username}</div></td>
                 <td>{learner.management_code || "—"}</td>
                 <td>{classLine(learner.cohort_ids, cohorts) || "—"} · {learner.active ? "active" : "inactive"}</td>
-                <td><LearnerControls id={learner.id} active={Boolean(learner.active)} role={learner.role} /></td>
+                <td>{isAdmin ? <LearnerControls id={learner.id} active={Boolean(learner.active)} role={learner.role} /> : <Link href={`/admin/learning/learners/${learner.id}`}>Hồ sơ</Link>}</td>
               </tr>
             ))}
           </tbody>

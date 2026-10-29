@@ -6,6 +6,8 @@ import { messages } from "@/lib/i18n";
 import { getSession } from "@/lib/auth";
 import { learningState } from "@/lib/access";
 import { SelfEnroll } from "@/components/admin/SelfEnroll";
+import { inCohort, staffScope } from "@/lib/staff-scope";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +17,13 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const status = filters.status || "";
   const locale = await getLocale();
   const t = messages(locale);
-  const data = await q((convex, secret) => convex.query(api.reads.adminHome, { secret, cohortId: cohort, status }));
-  const rows = data.rows;
-  const cohorts = data.cohorts;
   const user = await getSession();
+  if (!user) redirect("/learn/login");
+  // Instructors see only the classes they teach.
+  const scope = await staffScope(user);
+  const data = await q((convex, secret) => convex.query(api.reads.adminHome, { secret, cohortId: cohort, status }));
+  const rows = data.rows.filter((row) => inCohort(scope, row.cohort_id));
+  const cohorts = data.cohorts.filter((item) => inCohort(scope, item.id));
   const state = user ? await learningState(user.id) : null;
   const enrolledIds = new Set((state?.enrollments ?? []).map((seat) => seat.cohort_id));
   const selected = cohorts.find((item) => String(item.id) === (filters.cohort || ""));

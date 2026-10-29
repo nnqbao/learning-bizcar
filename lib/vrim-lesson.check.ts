@@ -146,6 +146,8 @@ async function writePaths() {
   rows("lessonAnswers").push(oldRow);
   rows("lessonSubmissions").push({ _id: "lessonSubmissions:old", legacyId: 1, userId: 7, lessonId: 4, cohortId: 1, answersJson: oldRow.answersJson, reviewStatus: "submitted" });
   rows("counters").push({ _id: "counters:1", name: "lessonSubmissions", value: 1 }, { _id: "counters:2", name: "lessonAnswers", value: 1 });
+  // Feedback checks the reviewer's scope (convex/staffScope.ts): actor 1 is an active admin.
+  rows("users").push({ _id: "users:admin", legacyId: 1, role: "admin", active: 1 });
   const frozen = JSON.stringify(oldRow);
   const untouched = (label: string) => {
     assert(JSON.stringify(rows("lessonAnswers").find((row) => row._id === oldRow._id)) === frozen, `old record untouched: ${label}`);

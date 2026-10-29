@@ -3,20 +3,25 @@ import { getSession } from "@/lib/auth";
 import { api, q } from "@/lib/convex";
 import { canSee } from "@/lib/permissions";
 import { createTask } from "@/lib/admin-actions";
+import { hasLearner, staffScope } from "@/lib/staff-scope";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminTasksPage() {
+export default async function AdminTasksPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const error = (await searchParams).error;
   const actor = await getSession();
   if (!actor || !(await canSee(actor, "admin-tasks"))) redirect("/learn/dashboard");
   const board = await q((convex, secret) => convex.query(api.reads.taskBoard, { secret, exceptUserId: actor.id }));
-  const people = board.people;
-  const tasks = board.tasks;
+  // Instructors assign only to learners of the classes they teach, and see those tasks plus their own.
+  const scope = await staffScope(actor);
+  const people = board.people.filter((person) => hasLearner(scope, person.id));
+  const tasks = board.tasks.filter((task) => scope.all || task.author_id === actor.id || hasLearner(scope, task.assignee_id));
   return (
     <main className="grid-2">
       <form action={createTask} className="card">
         <h1 className="serif">Giao nhiệm vụ</h1>
-        <p className="muted">Admin và Mod giao việc cho bất kỳ người dùng nào. User chỉ thấy nhiệm vụ của mình.</p>
+        <p className="muted">{scope.all ? "Admin và Mod giao việc cho bất kỳ người dùng nào." : "Giao việc cho học viên trong lớp bạn phụ trách."} Người nhận thấy nhiệm vụ của mình ở mục Nhiệm vụ.</p>
+        {error && <p className="notice"><strong>{error}</strong></p>}
         <div className="field"><label htmlFor="title">Việc cần làm</label><input id="title" name="title" required /></div>
         <div className="field"><label htmlFor="body">Nội dung</label><textarea id="body" name="body" /></div>
         <div className="field">

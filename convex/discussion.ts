@@ -199,7 +199,8 @@ export const home = query({
     const classIds = new Set(kept.filter((row) => row.kind === "class").map((row) => row.cohortId));
     const scope = access.staff ? cohorts.map((row) => row.legacyId) : scopeIds;
     const missingClass = scope.filter((id) => !classIds.has(id));
-    return { staff: access.staff, enrolled: access.enrolledCohortIds.length > 0, channels, missingClass };
+    // A class instructor without a learner seat still belongs to the discussion of the classes they teach.
+    return { staff: access.staff, enrolled: access.enrolledCohortIds.length + access.instructorCohortIds.length > 0, channels, missingClass };
   },
 });
 

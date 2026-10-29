@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { classPickerLabel } from "@/convex/codes";
 import { api, q } from "@/lib/convex";
 import { getSession } from "@/lib/auth";
+import { hasLearner, staffScope } from "@/lib/staff-scope";
 import { canCoachSee, learningState } from "@/lib/access";
 import { setManagementCode } from "@/lib/admin-actions";
 import { WORKBOOK, readPath } from "@/lib/course";
@@ -19,7 +20,9 @@ export default async function LearnerDetail({ params, searchParams }: { params: 
   const actor = await getSession();
   if (!actor) redirect("/learn/login");
   const learnerId = Number(id);
-  if (!canCoachSee(actor, learnerId) || actor.role === "user") notFound();
+  // Admin/mod: any learner. Instructor: learners of the classes they teach.
+  if (!canCoachSee(actor, learnerId) && !hasLearner(await staffScope(actor), learnerId)) notFound();
+  const isAdmin = actor.role === "admin";
   const detail = await q((convex, secret) => convex.query(api.reads.learnerDetail, { secret, id: learnerId }));
   if (!detail) notFound();
   if (detail.learner.role !== "user") {
@@ -36,11 +39,11 @@ export default async function LearnerDetail({ params, searchParams }: { params: 
       <h1 className="serif">{learner.display_name}</h1>
       {error && <p className="notice"><strong>{error}</strong></p>}
       {detail.classes.length > 0 && <p className="muted">{detail.classes.map((item) => classPickerLabel({ name: item.cohort_name, code: item.cohort_code, courseCode: item.course_code })).join(", ")}</p>}
-      <form action={setManagementCode} className="row-actions">
+      {isAdmin && <form action={setManagementCode} className="row-actions">
         <input type="hidden" name="userId" value={learner.id} />
         <input name="code" aria-label="Mã học viên" defaultValue={learner.management_code} placeholder="HV-0001" />
         <button className="btn" type="submit">Lưu mã</button>
-      </form>
+      </form>}
       {learner.role !== "user" && <p className="muted">{t.staffLearnerNote}</p>}
       <h2>Dòng thời gian</h2>
       <ul>{logs.map((log) => <li key={log.created_at + log.action}>{log.created_at} · {log.action} {log.detail ?? ""}</li>)}</ul>

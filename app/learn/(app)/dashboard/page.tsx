@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { answersFor, learningState, instructorClassFor } from "@/lib/access";
+import { staffScope } from "@/lib/staff-scope";
 import { canSee } from "@/lib/permissions";
 import { CourseMap } from "@/components/learning/CourseMap";
 import { getLocale } from "@/lib/locale";
@@ -15,7 +16,10 @@ export default async function DashboardPage() {
   const user = await getSession();
   if (!user) return null;
   if (!(await canSee(user, "dashboard"))) redirect("/learn/profile");
-  const state = await learningState(user.id);
+  const first = await learningState(user.id);
+  // An instructor without a learner seat sees the course they teach, not the default one.
+  const teachingSlug = !first?.enrollments.length && user.role === "user" ? (await staffScope(user)).courseSlugs[0] : undefined;
+  const state = teachingSlug ? await learningState(user.id, teachingSlug) : first;
   if (!state) return null;
   const enrollment = state.enrollment;
   const course = state.course;

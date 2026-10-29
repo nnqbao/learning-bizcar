@@ -23,6 +23,7 @@ import type * as notifications from "../notifications.js";
 import type * as qlctCourse from "../qlctCourse.js";
 import type * as reads from "../reads.js";
 import type * as seed from "../seed.js";
+import type * as staffScope from "../staffScope.js";
 import type * as vabixApplier from "../vabixApplier.js";
 import type * as writes from "../writes.js";
 
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   qlctCourse: typeof qlctCourse;
   reads: typeof reads;
   seed: typeof seed;
+  staffScope: typeof staffScope;
   vabixApplier: typeof vabixApplier;
   writes: typeof writes;
 }>;
