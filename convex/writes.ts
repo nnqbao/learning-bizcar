@@ -981,6 +981,19 @@ export const addFeedback = mutation({
   },
 });
 
+const STATUS_RANK: Record<string, number> = { not_started: 0, in_progress: 1, completed: 2, submitted: 3, reviewed: 4 };
+
+/**
+ * A save never lowers a finished lesson: once completed / submitted / reviewed, a late autosave (one that read the
+ * row before a submit landed) keeps the higher status and its completion time.
+ */
+export function keptStatus(existing: { status: string; completedAt: string | null } | null, status: string, completedAt: string | null, stamp: string) {
+  if (!existing || (STATUS_RANK[existing.status] ?? 0) < 2 || (STATUS_RANK[status] ?? 0) >= (STATUS_RANK[existing.status] ?? 0)) {
+    return { status, completedAt: (STATUS_RANK[status] ?? 0) >= 2 ? existing?.completedAt ?? completedAt ?? stamp : completedAt };
+  }
+  return { status: existing.status, completedAt: existing.completedAt ?? completedAt ?? stamp };
+}
+
 export const saveAnswers = mutation({
   args: {
     ...secret,
@@ -1003,13 +1016,14 @@ export const saveAnswers = mutation({
     const existing = await ctx.db.query("lessonAnswers").withIndex("by_user_lesson", (q) => q.eq("userId", args.userId).eq("lessonId", args.lessonId)).unique();
     const stamp = now();
     if (existing) {
+      const kept = keptStatus(existing, args.status, args.completedAt, stamp);
       await ctx.db.patch(existing._id, {
         answersJson: args.answersJson,
         currentPhase: args.phase,
         phasesDoneJson: args.phasesDoneJson,
         progressPercent: args.progressPercent,
-        status: args.status,
-        completedAt: args.completedAt,
+        status: kept.status,
+        completedAt: kept.completedAt,
         schemaVersion: args.schemaVersion,
         updatedAt: stamp,
       });
@@ -1069,7 +1083,8 @@ async function saveVersion(ctx: MutationCtx, args: {
     updatedAt: stamp,
   };
   if (existing) {
-    await ctx.db.patch(existing._id, fields);
+    const kept = keptStatus(existing, args.status, args.completedAt, stamp);
+    await ctx.db.patch(existing._id, { ...fields, status: kept.status, completedAt: kept.completedAt });
   } else {
     const id = await nextId(ctx, "lessonAnswerVersions");
     await ctx.db.insert("lessonAnswerVersions", { legacyId: id, userId: args.userId, courseId: args.courseId, lessonId: args.lessonId, answerKey, ...fields });
@@ -1132,6 +1147,7 @@ export const submitLesson = mutation({
     gate(args.secret);
     const { answerKey, row: existing } = await writableAnswer(ctx, args.userId, args.lessonId);
     if (!existing) throw new Error("EMPTY");
+    // Snapshot the row as it is now (inside this transaction), not the copy the caller read earlier.
     const id = await nextId(ctx, "lessonSubmissions");
     const stamp = now();
     await ctx.db.insert("lessonSubmissions", {
@@ -1141,9 +1157,9 @@ export const submitLesson = mutation({
       cohortId: args.cohortId,
       schemaVersion: args.schemaVersion,
       contentVersion: args.contentVersion,
-      answersJson: args.answersJson,
-      phase: args.phase,
-      progressPercent: args.progressPercent,
+      answersJson: existing.answersJson,
+      phase: existing.currentPhase,
+      progressPercent: existing.progressPercent,
       submittedAt: stamp,
       reviewStatus: "submitted",
       ...(answerKey ? { answerKey } : {}),

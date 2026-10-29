@@ -220,10 +220,12 @@ export function StudioLesson(props: Props) {
     const index = STUDIO_STEPS.indexOf(phaseRef.current);
     if (index >= 0) host.go(index);
     window.__bizcarShow = (id: string) => show(id as PhaseId);
+    window.__bizcarFlush = () => { window.clearTimeout(timer.current); return flush(); };
     report();
     if (dirty.current) schedule();
     return () => {
       delete window.__bizcarShow;
+      delete window.__bizcarFlush;
       window.clearTimeout(timer.current);
       if (dirty.current) void flush();
       host.destroy();

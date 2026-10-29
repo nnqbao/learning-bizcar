@@ -122,7 +122,7 @@ export function LessonStage(props: Props) {
           dirty: true, updatedAt: new Date().toISOString(), answers: safeParse(value),
         }));
         clearTimeout(timer);
-        timer = setTimeout(() => { void flush(value); }, 700);
+        timer = setTimeout(() => { void flush(); }, 700);
         queueMicrotask(publish);
       },
     };
@@ -168,8 +168,19 @@ export function LessonStage(props: Props) {
     });
     if (scope === "bizcar-lesson") observer.observe(root, { subtree: true, attributes: true, attributeFilter: ["class"] });
 
-    async function flush(value: string) {
+    // One save at a time, always the latest text. A response only marks the cache clean when nothing newer was
+    // typed meanwhile, so an older save finishing late can never overwrite newer work (here or on the server).
+    let tail: Promise<void> = Promise.resolve();
+    function flush() {
+      clearTimeout(timer);
+      const run = tail.then(send);
+      tail = run.catch(() => undefined);
+      return run;
+    }
+    async function send() {
+      if (!dirty || previewRef.current) return;
       dirty = false;
+      const value = memory.get(key) ?? "{}";
       try {
         const state = safeParse(value);
         const reading = readDom(root!);
@@ -187,15 +198,20 @@ export function LessonStage(props: Props) {
         });
         if (!response.ok) throw new Error("save failed");
         const payload = await response.json() as { updatedAt?: string };
+        if (dirty) return; // newer edits are queued; their save updates the cache and the label
         window.localStorage.setItem(cacheKey(current.userId, key), JSON.stringify({
           dirty: false, updatedAt: payload.updatedAt ?? new Date().toISOString(), answers: state,
         }));
         const stamp = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
         current.onSaveState("saved", stamp);
       } catch {
+        dirty = true; // keep it pending: retried on the next edit, when back online, or before submit
         current.onSaveState("offline");
       }
     }
+    const retry = () => { if (dirty) void flush(); };
+    window.addEventListener("online", retry);
+    window.__bizcarFlush = flush;
 
     function publish() {
       const reading = readDom(root!);
@@ -206,7 +222,9 @@ export function LessonStage(props: Props) {
       observer.disconnect();
       cancelAnimationFrame(frame);
       clearTimeout(timer);
-      if (dirty && !previewRef.current) void flush(memory.get(key) ?? "{}");
+      window.removeEventListener("online", retry);
+      if (window.__bizcarFlush === flush) delete window.__bizcarFlush;
+      if (dirty && !previewRef.current) void flush();
       root.innerHTML = "";
     };
   }, [generation, props.lessonNumber, props.script]);
@@ -341,6 +359,8 @@ declare global {
     __vabixSession?: number;
     __vabixStorageKey?: string;
     __vabixOpenSession?: (index: number) => void;
+    /** Saves the open lesson's pending edits now (lesson shell calls it before Complete / Submit). */
+    __bizcarFlush?: () => Promise<void>;
     __babosoraSession?: number;
     __babosoraStorageKey?: string;
     __babosoraOpenSession?: (index: number) => void;

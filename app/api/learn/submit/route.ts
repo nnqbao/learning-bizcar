@@ -11,7 +11,10 @@ export async function POST(request: Request) {
     const id = await submitLesson(user.id, body.lessonNumber, body.courseSlug);
     return NextResponse.json({ ok: true, id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "ERROR";
-    return NextResponse.json({ error: message }, { status: 400 });
+    // Convex errors arrive wrapped in a long message: send the short code only, log the rest.
+    const message = error instanceof Error ? error.message : String(error);
+    const code = message.match(/\b(EMPTY|REVIEW_OFF|LOCKED|NOT_FOUND|FORBIDDEN)\b/)?.[1] ?? "ERROR";
+    if (code === "ERROR") console.error("[learn/submit]", message);
+    return NextResponse.json({ error: code }, { status: code === "FORBIDDEN" ? 403 : code === "LOCKED" ? 423 : 400 });
   }
 }
