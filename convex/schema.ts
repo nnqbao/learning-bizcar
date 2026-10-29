@@ -23,6 +23,8 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
     managementCode: v.optional(v.string()),
+    // 1 = super admin (role stays "admin"). Granted only from the server: convex/accountRules.ts.
+    superAdmin: v.optional(v.number()),
   }).index("by_legacy", ["legacyId"]).index("by_username", ["usernameLower"]).index("by_management_code", ["managementCode"]),
   sessions: defineTable({
     token: v.string(),

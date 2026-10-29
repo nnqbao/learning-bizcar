@@ -5,6 +5,7 @@ import { cohortInstructorIds, instructorAssignmentError, PRACTICAL_INSTRUCTOR_GR
 import { BMDO_SLUG, answerKeyFor, isVersionedAnswerJson, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode, normalizeSessionDrafts, slugFromCode } from "./codes";
 import { ensureClassChannel } from "./discussion";
 import { answerKeys, gate, lessonByLegacy, nextId, now, passwordFlag, userByLegacy, versionRow } from "./helpers";
+import { accountActionError, createRoleError, isSuperAdmin as isSuperAdminActor } from "./accountRules";
 
 const secret = { secret: v.string() };
 
@@ -278,13 +279,17 @@ export const setAccountActive = mutation({
   handler: async (ctx, args) => {
     gate(args.secret);
     const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
-    if (!user || user.role === "admin") return;
+    if (!user) return { error: "Không tìm thấy tài khoản." as const };
+    const actor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.actorId)).unique();
+    const denied = accountActionError(actor, user, "lock");
+    if (denied) return { error: denied };
     await ctx.db.patch(user._id, { active: args.active ? 1 : 0, updatedAt: now() });
     if (!args.active) {
       const sessions = await ctx.db.query("sessions").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect();
       for (const session of sessions) await ctx.db.delete(session._id);
     }
     await log(ctx, args.actorId, "account_status", "user", String(args.userId), args.active ? "active" : "inactive");
+    return { ok: true as const };
   },
 });
 
@@ -293,11 +298,15 @@ export const resetPassword = mutation({
   handler: async (ctx, args) => {
     gate(args.secret);
     const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
-    if (!user) throw new Error("NOT_FOUND");
+    if (!user) return { error: "Không tìm thấy tài khoản." as const };
+    const actor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.actorId)).unique();
+    const denied = accountActionError(actor, user, "password");
+    if (denied) return { error: denied };
     await ctx.db.patch(user._id, { passwordHash: args.passwordHash, mustChangePassword: 1, updatedAt: now() });
     const sessions = await ctx.db.query("sessions").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect();
     for (const session of sessions) await ctx.db.delete(session._id);
     await log(ctx, args.actorId, "password_reset", "user", String(args.userId));
+    return { ok: true as const };
   },
 });
 
@@ -351,8 +360,9 @@ export const deleteUserAccount = mutation({
     if (!actor || actor.role !== "admin" || actor.active !== 1) return { error: "Không có quyền." as const };
     const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
     if (!user) return { error: "Không tìm thấy tài khoản." as const };
-    if (user.role === "admin") return { error: "Không xóa tài khoản quản trị." as const };
     if (user.legacyId === actor.legacyId) return { error: "Không xóa chính mình." as const };
+    const denied = accountActionError(actor, user, "delete");
+    if (denied) return { error: denied };
     await purgeUserOwned(ctx, user.legacyId, user.usernameLower);
     await ctx.db.delete(user._id);
     await log(ctx, actor.legacyId, "user_delete", "user", String(user.legacyId), user.username);
@@ -786,6 +796,9 @@ export const createAccount = mutation({
     const username = args.username.trim();
     const displayName = args.displayName.trim();
     if (!username || !displayName) return { error: "Thiếu thông tin tài khoản." as const };
+    const creator = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.actorId)).unique();
+    const roleDenied = createRoleError(creator, args.role);
+    if (roleDenied) return { error: roleDenied };
     const usernameLower = username.toLowerCase();
     const taken = await ctx.db.query("users").withIndex("by_username", (q) => q.eq("usernameLower", usernameLower)).unique();
     if (taken) return { error: "Tên đăng nhập đã tồn tại." as const };
@@ -825,6 +838,27 @@ export const createAccount = mutation({
     });
     await log(ctx, args.actorId, "user_create", "user", String(userId), username);
     return { id: userId };
+  },
+});
+
+/** Super admin changes the role of an account (user ↔ mod ↔ admin). Never a super admin, never yourself. */
+export const setUserRole = mutation({
+  args: { ...secret, actorId: v.number(), userId: v.number(), role: v.union(v.literal("admin"), v.literal("mod"), v.literal("user")) },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const actor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.actorId)).unique();
+    const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
+    if (!user) return { error: "Không tìm thấy tài khoản." as const };
+    const denied = accountActionError(actor, user, "role") ?? createRoleError(actor, args.role);
+    if (denied) return { error: denied };
+    if (!isSuperAdminActor(actor)) return { error: "Chỉ super admin đổi được vai trò." as const };
+    if (user.role === args.role) return { ok: true as const };
+    await ctx.db.patch(user._id, { role: args.role, updatedAt: now() });
+    // A new role takes effect on the next sign-in.
+    const sessions = await ctx.db.query("sessions").withIndex("by_user", (q) => q.eq("userId", user.legacyId)).collect();
+    for (const session of sessions) await ctx.db.delete(session._id);
+    await log(ctx, args.actorId, "role_change", "user", String(user.legacyId), `${user.role}→${args.role}`);
+    return { ok: true as const };
   },
 });
 

@@ -810,6 +810,23 @@ export const addCourseQlct = internalMutation({
   },
 });
 
+/**
+ * Grant or remove super admin (convex/accountRules.ts). Server only, never from the web.
+ *   npx convex run seed:setSuperAdmin '{"username":"someone@example.com","on":true}'
+ */
+export const setSuperAdmin = internalMutation({
+  args: { username: v.string(), on: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.query("users").withIndex("by_username", (q) => q.eq("usernameLower", args.username.trim().toLowerCase())).unique();
+    if (!user) return { error: "Không tìm thấy tài khoản." };
+    if (args.on && (user.role !== "admin" || user.active !== 1)) return { error: "Chỉ cấp cho tài khoản admin đang hoạt động." };
+    await ctx.db.patch(user._id, { superAdmin: args.on ? 1 : undefined, updatedAt: now() });
+    const id = await nextId(ctx, "activityLogs");
+    await ctx.db.insert("activityLogs", { legacyId: id, actorId: null, action: args.on ? "super_admin_grant" : "super_admin_revoke", targetType: "user", targetId: String(user.legacyId), detail: user.username, createdAt: now() });
+    return { ok: true, id: user.legacyId, username: user.username, superAdmin: args.on };
+  },
+});
+
 export const upsertAdmin = mutation({
   args: {
     secret: v.string(),

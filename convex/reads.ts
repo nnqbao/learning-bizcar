@@ -386,6 +386,7 @@ export const usersView = query({
         display_name: row.displayName,
         username: row.username,
         role: row.role,
+        super_admin: row.superAdmin === 1 && row.role === "admin" ? 1 : 0,
         active: row.active,
         department: departments.find((item) => item.legacyId === row.departmentId)?.name ?? null,
         group_name: groups.find((item) => item.legacyId === row.permissionGroupId)?.name ?? null,
