@@ -6,6 +6,7 @@ import { boardToken } from "@/lib/class-board";
 import { loadBoardLesson } from "@/lib/lesson-source";
 import { isQlctCourse, qlctLesson } from "@/lib/qlct-course";
 import { ClassBoardLesson } from "@/components/learning/ClassBoardLesson";
+import { inCohort, staffScope } from "@/lib/staff-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,8 @@ export default async function ClassBoardPage({ params }: { params: Promise<{ coh
   if (!Number.isInteger(cohortId) || !Number.isInteger(number)) notFound();
   const user = await getSession();
   if (!user) redirect("/learn/login");
-  if (user.role !== "admin" && user.role !== "mod") redirect("/admin/learning");
+  // Admin/mod: any class. Instructor: the classes they teach.
+  if (!inCohort(await staffScope(user), cohortId)) redirect("/admin/learning");
   const data = await q((convex, secret) => convex.query(api.reads.cohortsView, { secret }));
   const cohort = data.cohorts.find((item) => item.id === cohortId);
   const course = cohort ? data.courses.find((item) => item.id === cohort.course_id) : undefined;

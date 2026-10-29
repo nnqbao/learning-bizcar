@@ -1,20 +1,28 @@
 import Link from "next/link";
 import { courseManagementCode } from "@/convex/codes";
 import { api, q } from "@/lib/convex";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { inCohort, staffScope } from "@/lib/staff-scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const error = (await searchParams).error;
+  const user = await getSession();
+  if (!user) redirect("/learn/login");
+  // Instructors see the courses of the classes they teach; editing the catalog is admin work.
+  const scope = await staffScope(user);
   const data = await q((convex, secret) => convex.query(api.reads.cohortsView, { secret }));
-  const courses = data.courses;
+  const taught = new Set(data.cohorts.filter((item) => inCohort(scope, item.id)).map((item) => item.course_id));
+  const courses = data.courses.filter((course) => scope.all || taught.has(course.id));
   const lessons = data.lessons;
   return (
     <main>
       <h1 className="serif">Khoá học</h1>
       <p className="muted">Danh sách khoá. Bài học thuộc từng khoá — mở chi tiết để tạo, sửa, sắp xếp hoặc lưu trữ. Lớp không sửa danh mục này; buổi của lớp chỉ trỏ tới các bài.</p>
       <p className="row-actions" style={{ marginTop: 12 }}>
-        <Link className="btn dark" href="/admin/learning/courses/new">Tạo mới</Link>
+        {user.role === "admin" && <Link className="btn dark" href="/admin/learning/courses/new">Tạo mới</Link>}
       </p>
       {error && <p className="notice"><strong>{error}</strong></p>}
       {courses.length === 0 && <p className="muted" style={{ marginTop: 18 }}>Chưa có khoá.</p>}

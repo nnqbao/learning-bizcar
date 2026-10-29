@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { api, q } from "@/lib/convex";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { hasLearner, staffScope } from "@/lib/staff-scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProgressPage() {
-  const rows = await q((convex, secret) => convex.query(api.reads.progressRows, { secret }));
+  const user = await getSession();
+  if (!user) redirect("/learn/login");
+  const scope = await staffScope(user);
+  const rows = (await q((convex, secret) => convex.query(api.reads.progressRows, { secret }))).filter((row) => hasLearner(scope, row.id));
   return (
     <main>
       <h1 className="serif">Tiến độ bài học</h1>

@@ -4,6 +4,7 @@ import { classCatalog, cohortPlan, loadCatalog, type CatalogRow } from "./catalo
 import { BMDO_SLUG, classPickerLabel, subsetProgress } from "./codes";
 import { cohortInstructorIds, isAssignableInstructor, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
 import { answersView, gate, passwordFlag, publicUser } from "./helpers";
+import { staffScopeFor } from "./staffScope";
 
 const secret = { secret: v.string() };
 
@@ -86,6 +87,15 @@ export const instructorClass = query({
       .sort((a, b) => a.legacyId - b.legacyId);
     const row = classes.find((item) => cohortInstructorIds(item).includes(args.userId)) ?? (args.staff ? classes[0] : undefined);
     return row ? { id: row.legacyId, name: row.name, mine: cohortInstructorIds(row).includes(args.userId) } : null;
+  },
+});
+
+/** Admin-area scope of a person (convex/staffScope.ts). */
+export const staffScope = query({
+  args: { ...secret, userId: v.number() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    return staffScopeFor(ctx, args.userId);
   },
 });
 
@@ -336,6 +346,8 @@ export const taskBoard = query({
         status: row.status,
         due_at: row.dueAt,
         created_at: row.createdAt,
+        assignee_id: row.assigneeId,
+        author_id: row.authorId,
         assignee: users.find((item) => item.legacyId === row.assigneeId)?.displayName ?? "",
         author: users.find((item) => item.legacyId === row.authorId)?.displayName ?? "",
       }));
@@ -441,6 +453,7 @@ export const submissionsView = query({
           progress_percent: row.progressPercent,
           display_name: user?.displayName ?? "",
           user_id: row.userId,
+          cohort_id: row.cohortId,
           number: lesson?.number ?? 0,
           title: lesson?.title ?? "",
           framework: lesson?.framework ?? "",

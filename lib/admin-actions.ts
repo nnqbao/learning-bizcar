@@ -5,13 +5,22 @@ import { redirect } from "next/navigation";
 import { getSession } from "./auth";
 import { api, q } from "./convex";
 import { hashPassword, temporaryPassword } from "./password";
-import { canCoachSee } from "./access";
+import { staffScope } from "./staff-scope";
 
 async function actor(adminOnly = false) {
   const user = await getSession();
   if (!user) throw new Error("UNAUTHENTICATED");
   if (adminOnly && user.role !== "admin") throw new Error("FORBIDDEN");
   if (user.role !== "admin" && user.role !== "mod") throw new Error("FORBIDDEN");
+  return user;
+}
+
+/** Admin, mod, or an instructor of at least one class (Convex then limits them to their own classes). */
+async function scopedActor() {
+  const user = await getSession();
+  if (!user) throw new Error("UNAUTHENTICATED");
+  const scope = await staffScope(user);
+  if (!scope.all && scope.cohortIds.length === 0) throw new Error("FORBIDDEN");
   return user;
 }
 
@@ -405,15 +414,16 @@ export async function assignUserAccess(formData: FormData) {
 }
 
 export async function createTask(formData: FormData) {
-  const user = await actor(false);
+  const user = await scopedActor();
   const title = String(formData.get("title") || "").trim();
   const body = String(formData.get("body") || "").trim();
   const assigneeId = Number(formData.get("assigneeId"));
   const dueAt = String(formData.get("dueAt") || "") || null;
   if (!title || !assigneeId) return;
-  await q((convex, secret) => convex.mutation(api.writes.createTask, { secret, actorId: user.id, title, body, assigneeId, dueAt }));
+  const result = await q((convex, secret) => convex.mutation(api.writes.createTask, { secret, actorId: user.id, title, body, assigneeId, dueAt }));
   revalidatePath("/admin/tasks");
   revalidatePath("/learn/tasks");
+  if (result && "error" in result && result.error) redirect(`/admin/tasks?error=${encodeURIComponent(result.error)}`);
 }
 
 export async function saveCmsBlocks(formData: FormData) {
@@ -469,10 +479,10 @@ export async function saveCmsLesson(formData: FormData) {
 }
 
 export async function addFeedback(submissionId: number, body: string) {
-  const user = await actor(false);
-  const saved = await q((convex, secret) => convex.mutation(api.writes.addFeedback, {
+  // Convex checks the submission belongs to a class this person may review.
+  const user = await scopedActor();
+  await q((convex, secret) => convex.mutation(api.writes.addFeedback, {
     secret, actorId: user.id, submissionId, body,
   }));
-  if (!canCoachSee(user, saved.userId)) throw new Error("FORBIDDEN");
   revalidatePath("/admin/learning/submissions");
 }

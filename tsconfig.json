@@ -50,6 +50,7 @@
     "lib/instructor-view.check.ts",
     "lib/delete-user.check.ts",
     "lib/super-admin.check.ts",
-    "lib/lesson-save.check.ts"
+    "lib/lesson-save.check.ts",
+    "lib/staff-scope.check.ts"
   ]
 }

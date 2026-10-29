@@ -3,14 +3,20 @@ import { classPickerLabel } from "@/convex/codes";
 import { api, q } from "@/lib/convex";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { inCohort, staffScope } from "@/lib/staff-scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function CohortsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const error = (await searchParams).error;
   const t = messages(await getLocale());
+  const user = await getSession();
+  if (!user) redirect("/learn/login");
+  const scope = await staffScope(user);
   const data = await q((convex, secret) => convex.query(api.reads.cohortsView, { secret }));
-  const cohorts = data.cohorts;
+  const cohorts = data.cohorts.filter((item) => inCohort(scope, item.id));
   const courses = data.courses;
   const roster = data.enrollments;
   return (
@@ -18,7 +24,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
       <h1 className="serif">Lớp học</h1>
       <p className="muted">Danh sách lớp. Mỗi lớp thuộc một khoá và một giảng viên. Mở chi tiết để sửa buổi học, giảng viên và học viên.</p>
       <p className="row-actions" style={{ marginTop: 12 }}>
-        <Link className="btn dark" href="/admin/learning/cohorts/new">Tạo mới</Link>
+        {user.role === "admin" && <Link className="btn dark" href="/admin/learning/cohorts/new">Tạo mới</Link>}
         <Link className="btn" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link>
       </p>
       {error && <p className="notice"><strong>{error}</strong></p>}

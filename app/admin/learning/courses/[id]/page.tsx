@@ -1,3 +1,6 @@
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { inCohort, staffScope } from "@/lib/staff-scope";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { courseManagementCode } from "@/convex/codes";
@@ -23,6 +26,26 @@ export default async function CourseDetailPage({
   const rows = data.lessons.filter((lesson) => lesson.course_id === course.id);
   const suggested = course.management_code || courseManagementCode(course.code);
   const live = rows.filter((lesson) => lesson.archived !== 1).length;
+  const user = await getSession();
+  if (!user) redirect("/learn/login");
+  if (user.role !== "admin") {
+    // Read-only catalog for mod and instructors (instructors: only courses of the classes they teach).
+    const scope = await staffScope(user);
+    if (!scope.all && !data.cohorts.some((item) => item.course_id === course.id && inCohort(scope, item.id))) notFound();
+    return (
+      <main>
+        <p className="row-actions"><Link className="btn" href="/admin/learning/courses">Danh sách khoá</Link></p>
+        <div className="eyebrow">{course.code} · {suggested}</div>
+        <h1 className="serif">{course.title}</h1>
+        <p className="muted">{course.tagline} · {live} bài học. Chỉ admin sửa được danh mục khoá.</p>
+        <div className="card" style={{ marginTop: 12 }}>
+          {rows.filter((lesson) => lesson.archived !== 1).map((lesson) => (
+            <p key={lesson.id}><strong>{String(lesson.number).padStart(2, "0")} · {lesson.title}</strong> <span className="muted">{lesson.framework}</span></p>
+          ))}
+        </div>
+      </main>
+    );
+  }
   return (
     <main>
       <p className="row-actions"><Link className="btn" href="/admin/learning/courses">Danh sách khoá</Link></p>
