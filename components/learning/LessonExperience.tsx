@@ -45,6 +45,7 @@ export function LessonExperience({
   studioSource = null,
   standardShell = false,
   classBoard = null,
+  instructorView = null,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -72,6 +73,8 @@ export function LessonExperience({
   standardShell?: boolean;
   /** Class-workshop lesson on the shared class board (e.g. QLCT): replaces the lesson stage. */
   classBoard?: Omit<ClassBoardProps, "onProgress"> | null;
+  /** Class name when an instructor opens the lesson without a learner seat: view only, nothing is saved. */
+  instructorView?: string | null;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -152,10 +155,16 @@ export function LessonExperience({
             <b>{showPhases ? `${t.lesson} ${lesson.code} · ${t.phases[phase]}` : `${t.lesson} ${lesson.code} · ${lesson.title}`}</b>
           </div>
           <div className="top-meta">
-            <span className={`save-pill ${save}`}>{saveLabel}</span>
-            <span className="save-pill">{labelStatus(status, locale)}</span>
-            <button type="button" className="btn" disabled={busy !== ""} onClick={() => post("/api/learn/complete")}>{busy ? t.writing : t.complete}</button>
-            {reviewEnabled && <button type="button" className="btn dark" disabled={busy !== ""} onClick={() => post("/api/learn/submit")}>{t.submit}</button>}
+            {instructorView !== null ? (
+              <span className="save-pill preview" title={instructorView ? `${t.instructorViewOf} ${instructorView}` : undefined}>{t.instructorView}</span>
+            ) : (
+              <>
+                <span className={`save-pill ${save}`}>{saveLabel}</span>
+                <span className="save-pill">{labelStatus(status, locale)}</span>
+                <button type="button" className="btn" disabled={busy !== ""} onClick={() => post("/api/learn/complete")}>{busy ? t.writing : t.complete}</button>
+                {reviewEnabled && <button type="button" className="btn dark" disabled={busy !== ""} onClick={() => post("/api/learn/submit")}>{t.submit}</button>}
+              </>
+            )}
             <NotificationBell
               locale={locale}
               labels={{

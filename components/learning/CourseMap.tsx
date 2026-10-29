@@ -8,7 +8,8 @@ import { babosoraDisplay } from "@/lib/babosora-applier";
 import { qlctDisplay } from "@/lib/qlct-course";
 import { vabixDisplay } from "@/lib/vabix-applier";
 
-export async function CourseMap({ userId, locale, courseSlug }: { userId: number; locale: Locale; courseSlug?: string }) {
+/** `openAll`: instructor view (no learner seat) — every lesson opens, view only. */
+export async function CourseMap({ userId, locale, courseSlug, openAll = false }: { userId: number; locale: Locale; courseSlug?: string; openAll?: boolean }) {
   const t = messages(locale);
   const state = await learningState(userId, courseSlug);
   if (!state) return null;
@@ -17,7 +18,7 @@ export async function CourseMap({ userId, locale, courseSlug }: { userId: number
   const useCms = course.slug === BMDO_SLUG;
   const copies = useCms ? new Map((await cmsLessons()).map((item) => [item.number, item])) : new Map();
   const answers = new Map((await answersFor(userId, course.slug)).map((row) => [row.lesson_id, row]));
-  const unlockedByNumber = new Map(await Promise.all(lessons.map(async (lesson) => [lesson.number, await isLessonUnlocked(userId, lesson.number, course.slug)] as const)));
+  const unlockedByNumber = new Map(await Promise.all(lessons.map(async (lesson) => [lesson.number, openAll || await isLessonUnlocked(userId, lesson.number, course.slug)] as const)));
   const groups = useCms ? [...GROUPS] : [...new Set(lessons.map((lesson) => lesson.group_name))];
   return (
     <div>

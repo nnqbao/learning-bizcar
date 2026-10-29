@@ -71,6 +71,24 @@ function publicLesson(row: CatalogRow) {
   };
 }
 
+/**
+ * The class a viewer teaches in a course (instructorIds), else — for staff — the course's first class.
+ * Lets an instructor open that course's lessons without a learner seat.
+ */
+export const instructorClass = query({
+  args: { ...secret, userId: v.number(), courseSlug: v.string(), staff: v.boolean() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const course = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", args.courseSlug)).unique();
+    if (!course) return null;
+    const classes = (await ctx.db.query("cohorts").collect())
+      .filter((row) => row.courseId === course.legacyId)
+      .sort((a, b) => a.legacyId - b.legacyId);
+    const row = classes.find((item) => cohortInstructorIds(item).includes(args.userId)) ?? (args.staff ? classes[0] : undefined);
+    return row ? { id: row.legacyId, name: row.name, mine: cohortInstructorIds(row).includes(args.userId) } : null;
+  },
+});
+
 export const learnState = query({
   args: { ...secret, userId: v.number(), courseSlug: v.optional(v.string()) },
   handler: async (ctx, args) => {

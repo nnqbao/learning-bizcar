@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answerFor, isLessonUnlocked, learningState, legacyAnswerFor } from "@/lib/access";
+import { answerFor, instructorClassFor, isLessonUnlocked, learningState, legacyAnswerFor } from "@/lib/access";
 import { BMDO_SLUG } from "@/convex/codes";
 import { lessonByNumber, type LessonMeta } from "@/lib/course";
 import { loadBoardLesson, loadLessonSource } from "@/lib/lesson-source";
@@ -25,8 +25,13 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   if (!(await canSee(user, "map"))) redirect("/learn/profile");
   const state = await learningState(user.id, slug);
   if (!state || slug !== state.course.slug) notFound();
-  const enrollment = state.enrollment;
-  if (!enrollment || enrollment.member_role !== "learner") redirect("/learn/dashboard");
+  const learnerSeat = state.enrollment?.member_role === "learner" ? state.enrollment : null;
+  // Instructor view: a class instructor (or admin/mod) without a learner seat opens every lesson; nothing is saved.
+  const teaching = learnerSeat ? null : await instructorClassFor(user, slug);
+  if (!learnerSeat && !teaching) redirect("/learn/dashboard");
+  const instructorView = !learnerSeat;
+  const cohortId = learnerSeat ? learnerSeat.cohort_id : teaching!.id;
+  const unlocked = (lessonNumber: number) => instructorView ? Promise.resolve(true) : isLessonUnlocked(user.id, lessonNumber, slug);
   const rows = state.lessons;
   const row = rows.find((item) => item.number === number);
   if (!row) notFound();
@@ -36,7 +41,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   const meta = vabix ? vabixLesson(number) : babosora ? babosoraLesson(number) : qlct ? qlctLesson(number) : lessonByNumber(number);
   if (!meta) notFound();
   const published = state.course.slug === BMDO_SLUG ? await lessonPublished(number) : true;
-  if (!published || !(await isLessonUnlocked(user.id, number, slug))) redirect(`/learn/course/${state.course.slug}`);
+  if (!published || !(await unlocked(number))) redirect(`/learn/course/${state.course.slug}`);
   const lesson: LessonMeta = vabix || babosora || qlct
     ? { ...meta, title: row.title, framework: row.framework, summary: row.summary, storageKey: row.storage_key }
     : meta;
@@ -58,13 +63,13 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   // QLCT: the lesson is a class workshop on the shared board of the learner's class.
   const qlctMeta = qlct ? qlctLesson(number) : null;
   const classBoard = qlctMeta ? {
-    token: boardToken({ userId: user.id, cohortId: enrollment.cohort_id, lessonNumber: number, staff: false }, appSecret()),
+    token: boardToken({ userId: user.id, cohortId, lessonNumber: number, staff: instructorView }, appSecret()),
     me: { id: user.id, name: user.displayName },
-    staff: false,
-    roster: await q((convex, secret) => convex.query(api.classBoard.roster, { secret, cohortId: enrollment.cohort_id })),
+    staff: instructorView,
+    roster: await q((convex, secret) => convex.query(api.classBoard.roster, { secret, cohortId })),
     source: loadBoardLesson(qlctMeta.source, "qlct-lesson"),
     scopeClass: "qlct-lesson",
-    record: { courseSlug: state.course.slug, lessonNumber: number, initialAnswers: answers },
+    record: instructorView ? null : { courseSlug: state.course.slug, lessonNumber: number, initialAnswers: answers },
   } : null;
   const lessonNav = await Promise.all(rows.map(async (item) => ({
     number: item.number,
@@ -72,7 +77,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
     title: item.title,
     framework: item.framework,
     status: "not_started" as const,
-    unlocked: await isLessonUnlocked(user.id, item.number, slug),
+    unlocked: await unlocked(item.number),
   })));
   return (
     <LessonExperience
@@ -88,7 +93,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       initialProgress={saved?.progress_percent ?? 0}
       userId={user.id}
       serverUpdatedAt={saved?.updated_at ?? null}
-      reviewEnabled={Boolean(enrollment?.review_enabled)}
+      reviewEnabled={!instructorView && Boolean(learnerSeat?.review_enabled)}
       status={saved?.status ?? "not_started"}
       locale={await getLocale()}
       courseSlug={state.course.slug}
@@ -98,6 +103,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       studioSource={studioSource}
       standardShell={state.course.slug === BMDO_SLUG && !vabix && !babosora}
       classBoard={classBoard}
+      instructorView={instructorView ? (teaching?.name ?? "") : null}
     />
   );
 }
