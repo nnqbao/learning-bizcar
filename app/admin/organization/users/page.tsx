@@ -14,7 +14,6 @@ export default async function UsersAdminPage({ searchParams }: { searchParams: P
   if (!actor || actor.role !== "admin") redirect("/admin/learning");
   const data = await q((convex, secret) => convex.query(api.reads.usersView, { secret }));
   const users = data.users;
-  const departments = data.departments;
   const groups = data.groups;
   // Super admin (users.superAdmin): manages admin accounts. Every rule is enforced again in convex/accountRules.ts.
   const isSuper = users.some((person) => person.id === actor.id && person.super_admin === 1);
@@ -22,12 +21,12 @@ export default async function UsersAdminPage({ searchParams }: { searchParams: P
   return (
     <main>
       <h1 className="serif">Người dùng</h1>
-      <p className="muted">Admin tạo và xóa tài khoản user, mod. Super admin quản trị thêm các tài khoản admin: tạo, khóa, đổi vai trò, đặt mật khẩu tạm, xóa. Tài khoản super admin chỉ quản lý từ máy chủ. Mod không vào được trang này.</p>
+      <p className="muted">Admin tạo và xóa tài khoản user, mod. Nhóm quyền quyết định menu của user (Học viên, giảng viên). Super admin quản trị thêm các tài khoản admin: tạo, khóa, đổi vai trò, đặt mật khẩu tạm, xóa. Tài khoản super admin chỉ quản lý từ máy chủ. Mod không vào được trang này.</p>
       {error && <p className="notice"><strong>{error}</strong></p>}
-      <CreateUserForm departments={departments} groups={groups} canCreateAdmin={isSuper} />
+      <CreateUserForm groups={groups} canCreateAdmin={isSuper} />
       <div className="table-wrap card" style={{ padding: 0 }}>
         <table>
-          <thead><tr><th>Người dùng</th><th>Vai trò</th><th>Phòng ban và nhóm quyền</th><th>Mật khẩu</th><th>Xóa</th></tr></thead>
+          <thead><tr><th>Người dùng</th><th>Vai trò</th><th>Nhóm quyền</th><th>Mật khẩu</th><th>Xóa</th></tr></thead>
           <tbody>
             {users.map((person) => (
               <tr key={person.id}>
@@ -54,10 +53,7 @@ export default async function UsersAdminPage({ searchParams }: { searchParams: P
                   {person.role === "user" ? (
                     <form action={assignUserAccess} className="row-actions">
                       <input type="hidden" name="userId" value={person.id} />
-                      <select name="departmentId" defaultValue={person.department_id ?? ""} aria-label="Phòng ban">
-                        <option value="">Chưa gắn phòng ban</option>
-                        {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                      </select>
+                      
                       <select name="groupId" defaultValue={person.permission_group_id ?? ""} aria-label="Nhóm quyền">
                         <option value="">Chưa có nhóm quyền</option>
                         {groups.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}

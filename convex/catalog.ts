@@ -73,7 +73,7 @@ export const SESSION27_MAP_LEDE: Record<"vi" | "en", string> = {
 export const PRACTICAL_INSTRUCTOR_GROUP = "giảng viên dẫn giảng thực hành";
 
 /**
- * Same menus as "Theo dõi lớp": own learning, progress, submissions, tasks, discussion.
+ * Own learning, progress, submissions, tasks, discussion.
  * No admin-users / admin-departments / admin-groups / admin-cms (those are admin-only).
  * No admin-discussion: the desk page only serves admin and mod.
  */
@@ -91,7 +91,6 @@ export const PRACTICAL_INSTRUCTOR_DESCRIPTION =
 
 export const PERMISSION_PRESETS = [
   { name: "Học viên", description: "Thấy các menu học tập và nhiệm vụ của chính mình.", menus: ["dashboard", "map", "workbook", "portfolio", "tasks", "discussion"] },
-  { name: "Theo dõi lớp", description: "Thấy tiến độ và bài nộp, không quản trị người dùng.", menus: ["dashboard", "map", "admin-progress", "admin-submissions", "tasks", "discussion"] },
   {
     name: PRACTICAL_INSTRUCTOR_GROUP,
     description: PRACTICAL_INSTRUCTOR_DESCRIPTION,

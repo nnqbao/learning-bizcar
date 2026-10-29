@@ -39,7 +39,6 @@ export const MENUS: MenuItem[] = [
   { key: "admin-submissions", label: "Bài nộp", href: "/admin/learning/submissions", area: "admin" },
   { key: "admin-tasks", label: "Giao nhiệm vụ", href: "/admin/tasks", area: "admin" },
   { key: "admin-users", label: "Người dùng", href: "/admin/organization/users", area: "admin", adminOnly: true },
-  { key: "admin-departments", label: "Phòng ban", href: "/admin/organization/departments", area: "admin", adminOnly: true },
   { key: "admin-groups", label: "Nhóm quyền", href: "/admin/organization/groups", area: "admin", adminOnly: true },
   { key: "admin-cms", label: "CMS", href: "/admin/cms", area: "admin", adminOnly: true },
 ];

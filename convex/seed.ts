@@ -25,7 +25,7 @@ async function ensurePracticalInstructorGroupRow(ctx: MutationCtx) {
 }
 
 async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
-  for (const name of ["Học viên", "Theo dõi lớp"]) {
+  for (const name of ["Học viên"]) {
     const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", name)).unique();
     if (!group) continue;
     const links = await ctx.db.query("permissionGroupMenus").withIndex("by_group", (q) => q.eq("groupId", group.legacyId)).collect();
@@ -824,6 +824,24 @@ export const setSuperAdmin = internalMutation({
     const id = await nextId(ctx, "activityLogs");
     await ctx.db.insert("activityLogs", { legacyId: id, actorId: null, action: args.on ? "super_admin_grant" : "super_admin_revoke", targetType: "user", targetId: String(user.legacyId), detail: user.username, createdAt: now() });
     return { ok: true, id: user.legacyId, username: user.username, superAdmin: args.on };
+  },
+});
+
+/**
+ * Remove a permission group and its menu links. Refuses while any account still uses it. Server only.
+ *   npx convex run seed:removePermissionGroup '{"name":"..."}'
+ */
+export const removePermissionGroup = internalMutation({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", args.name)).unique();
+    if (!group) return { error: "Không có nhóm quyền này." };
+    const members = (await ctx.db.query("users").collect()).filter((row) => row.permissionGroupId === group.legacyId);
+    if (members.length) return { error: `Nhóm còn ${members.length} tài khoản, chưa xóa.` };
+    const links = await ctx.db.query("permissionGroupMenus").withIndex("by_group", (q) => q.eq("groupId", group.legacyId)).collect();
+    for (const link of links) await ctx.db.delete(link._id);
+    await ctx.db.delete(group._id);
+    return { ok: true, removed: group.name, menus: links.length };
   },
 });
 
